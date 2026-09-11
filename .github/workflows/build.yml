@@ -34,13 +34,13 @@ jobs:
         include:
         - os: windows-latest
           runtime: win-x64
-          artifact: cli-windows-x64
+          artifact: CS2WorkshopUploader-CLI-windows-x64
         - os: ubuntu-latest
           runtime: linux-x64
-          artifact: cli-linux-x64
+          artifact: CS2WorkshopUploader-CLI-linux-x64
         - os: macos-latest
           runtime: osx-arm64
-          artifact: cli-macos-arm64
+          artifact: CS2WorkshopUploader-CLI-macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -51,10 +51,10 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release CS2WorkshopUploader.slnx
 
-    - name: Publish CLI
+    - name: Publish CS2WorkshopUploader-CLI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} CLI/CLI.csproj
 
-    - name: Upload CLI
+    - name: Upload CS2WorkshopUploader-CLI
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact }}
@@ -79,11 +79,11 @@ jobs:
       run: |
        set -eux
        mkdir release
-       chmod +x artifacts/cli-linux-x64/CS2WorkshopUploader-CLI
-       chmod +x artifacts/cli-macos-arm64/CS2WorkshopUploader-CLI
-       zip -9j release/cli-windows-x64.zip artifacts/cli-windows-x64/*
-       zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
-       zip -9j release/cli-macos-arm64.zip artifacts/cli-macos-arm64/*
+       chmod +x artifacts/CS2WorkshopUploader-CLI-linux-x64/CS2WorkshopUploader-CLI
+       chmod +x artifacts/CS2WorkshopUploader-CLI-macos-arm64/CS2WorkshopUploader-CLI
+       zip -9j release/CS2WorkshopUploader-CLI-windows-x64.zip artifacts/CS2WorkshopUploader-CLI-windows-x64/*
+       zip -9j release/CS2WorkshopUploader-CLI-linux-x64.zip artifacts/CS2WorkshopUploader-CLI-linux-x64/*
+       zip -9j release/CS2WorkshopUploader-CLI-macos-arm64.zip artifacts/CS2WorkshopUploader-CLI-macos-arm64/*
 
     - name: Display structure of archived files
       run: ls -Rl
