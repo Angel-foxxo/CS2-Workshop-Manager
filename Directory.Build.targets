@@ -8,4 +8,12 @@
     <FileVersion>$(ProjectVersion)</FileVersion>
     <Version>$(ProjectVersion)</Version>
   </PropertyGroup>
+
+  <!-- native package assets that end up in the output without being used: VRF's shader tooling and image library -->
+  <Target Name="RemoveUnusedNativeAssets" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Filename)' == 'spirv-cross' or '%(Filename)' == 'libspirv-cross' or '%(Filename)' == 'libSkiaSharp'" />
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Filename)' == 'spirv-cross' or '%(Filename)' == 'libspirv-cross' or '%(Filename)' == 'libSkiaSharp'" />
+    </ItemGroup>
+  </Target>
 </Project>

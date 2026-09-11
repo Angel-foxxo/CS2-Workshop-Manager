@@ -53,21 +53,6 @@ public static class AddonPackager
 
     private readonly record struct VpkDirectoryRule(bool Exclude, string Prefix);
 
-    private sealed class PublishData
-    {
-        [KVProperty("title")]
-        public string Title { get; set; } = string.Empty;
-
-        [KVProperty("source_folder")]
-        public string SourceFolder { get; set; } = string.Empty;
-
-        [KVProperty("publish_time")]
-        public long PublishTime { get; set; }
-
-        [KVProperty("publish_time_readable")]
-        public string PublishTimeReadable { get; set; } = string.Empty;
-    }
-
     public static string GetStagingPath(string addonsRoot, ulong publishedFileId)
     {
         return Path.Combine(addonsRoot, "vpks", publishedFileId.ToString(CultureInfo.InvariantCulture));
@@ -97,13 +82,11 @@ public static class AddonPackager
 
         Pack(addonPath, gameInfoPath, Path.Combine(stagingPath, $"{publishedFileId}_dir.vpk"));
 
-        var publishData = new PublishData
-        {
-            Title = title,
-            SourceFolder = addonName,
-            PublishTime = publishTime.ToUnixTimeSeconds(),
-            PublishTimeReadable = publishTime.ToLocalTime().ToString(PublishTimeFormat, CultureInfo.InvariantCulture),
-        };
+        var publishData = KVObject.Collection();
+        publishData.Add("title", title);
+        publishData.Add("source_folder", addonName);
+        publishData.Add("publish_time", publishTime.ToUnixTimeSeconds());
+        publishData.Add("publish_time_readable", publishTime.ToLocalTime().ToString(PublishTimeFormat, CultureInfo.InvariantCulture));
 
         // create publish_data.txt
         using var stream = File.Create(Path.Combine(stagingPath, PublishDataFileName));
@@ -125,7 +108,9 @@ public static class AddonPackager
         }
 
         using var stream = File.OpenRead(path);
-        return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<PublishData>(stream).SourceFolder;
+        var publishData = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream, KVSerializerOptions.DefaultOptions);
+
+        return publishData["source_folder"] is KVObject sourceFolder ? (string)sourceFolder : null;
     }
 
     /// <summary>

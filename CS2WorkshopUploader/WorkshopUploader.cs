@@ -1,7 +1,7 @@
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using SkiaSharp;
+using StbImageSharp;
+using StbImageWriteSharp;
 using Steamworks;
 using ValveResourceFormat.IO;
 
@@ -78,17 +78,22 @@ public sealed class SourceFolderConflictException : InvalidOperationException
 public sealed class WorkshopUploader
 {
     /// <summary>CS2 appid.</summary>
-    public static readonly AppId_t AppId = new(730);
+    public const uint AppId = 730;
 
     public const int ThumbnailJpegQuality = 75;
 
-    public static readonly SKEncodedImageFormat[] ThumbnailFormats = [SKEncodedImageFormat.Png, SKEncodedImageFormat.Jpeg, SKEncodedImageFormat.Gif, SKEncodedImageFormat.Webp];
-
     public static readonly string[] DefaultTags = ["CS2", "Map"];
 
-    private static readonly TimeSpan CallbackPollInterval = TimeSpan.FromMilliseconds(50);
+    private static SteamClient? steam;
 
-    private static bool SteamInitialized;
+    private static SteamClient Steam
+    {
+        get
+        {
+            InitializeSteam();
+            return steam!;
+        }
+    }
 
     public string GamePath { get; }
     public string AddonsRoot => Path.Combine(GamePath, "game", "csgo_addons");
@@ -102,7 +107,7 @@ public sealed class WorkshopUploader
 
     public static WorkshopUploader FromSteamInstall()
     {
-        var game = GameFolderLocator.FindSteamGameByAppId((int)AppId.m_AppId)
+        var game = GameFolderLocator.FindSteamGameByAppId((int)AppId)
             ?? throw new DirectoryNotFoundException("Counter-Strike 2 is not installed in any Steam library.");
 
         return new WorkshopUploader(game.GamePath);
@@ -113,33 +118,13 @@ public sealed class WorkshopUploader
     /// </summary>
     public static void InitializeSteam()
     {
-        if (SteamInitialized)
-        {
-            return;
-        }
-
-        Environment.SetEnvironmentVariable("SteamAppId", AppId.ToString());
-        Environment.SetEnvironmentVariable("SteamGameId", AppId.ToString());
-
-        var result = SteamAPI.InitEx(out var message);
-
-        if (result != ESteamAPIInitResult.k_ESteamAPIInitResult_OK)
-        {
-            throw new InvalidOperationException($"Failed to initialize Steam ({result}): {message}");
-        }
-
-        SteamInitialized = true;
+        steam ??= new SteamClient(AppId);
     }
 
     public static void ShutdownSteam()
     {
-        if (!SteamInitialized)
-        {
-            return;
-        }
-
-        SteamAPI.Shutdown();
-        SteamInitialized = false;
+        steam?.Dispose();
+        steam = null;
     }
 
     /// <summary>
@@ -150,9 +135,9 @@ public sealed class WorkshopUploader
     /// </returns>
     public static string? GetConflictingSourceFolder(string addonName, ulong publishedFileId)
     {
-        InitializeSteam();
+        var installDirectory = Steam.UGC.GetItemInstallFolder(publishedFileId);
 
-        if (!SteamUGC.GetItemInstallInfo(new PublishedFileId_t(publishedFileId), out _, out var installDirectory, 260, out _))
+        if (installDirectory == null)
         {
             return null;
         }
@@ -181,91 +166,72 @@ public sealed class WorkshopUploader
         var publishTime = DateTimeOffset.UtcNow;
         var contentPath = AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title, publishTime);
 
-        var handle = SteamUGC.StartItemUpdate(AppId, new PublishedFileId_t(publishedFileId));
+        var ugc = Steam.UGC;
+        var handle = ugc.StartItemUpdate(AppId, publishedFileId);
 
-        SteamUGC.SetItemTitle(handle, options.Title);
-        SteamUGC.SetItemDescription(handle, options.Description);
-        SteamUGC.SetItemVisibility(handle, (ERemoteStoragePublishedFileVisibility)options.Visibility);
+        ugc.SetItemTitle(handle, options.Title);
+        ugc.SetItemDescription(handle, options.Description);
+        ugc.SetItemVisibility(handle, (ERemoteStoragePublishedFileVisibility)options.Visibility);
 
         if (options.ThumbnailImagePath != null)
         {
-            SteamUGC.SetItemPreview(handle, WriteThumbnail(options.ThumbnailImagePath, publishedFileId, publishTime));
+            ugc.SetItemPreview(handle, WriteThumbnail(options.ThumbnailImagePath, publishedFileId, publishTime));
         }
 
-        SteamUGC.SetItemContent(handle, contentPath);
-        SteamUGC.SetItemTags(handle, [.. options.Tags]);
+        ugc.SetItemContent(handle, contentPath);
+        ugc.SetItemTags(handle, options.Tags);
 
         var changeNote = options.ChangeNote ?? (options.PublishedFileId == null ? $"Created {options.Title}." : $"Edited {options.Title}.");
 
-        var result = await WaitForCallResultAsync<SubmitItemUpdateResult_t>(SteamUGC.SubmitItemUpdate(handle, changeNote), () =>
+        var result = await Steam.WaitForCallResultAsync<SubmitItemUpdateResult>(ugc.SubmitItemUpdate(handle, changeNote), () =>
         {
-            SteamUGC.GetItemUpdateProgress(handle, out var processed, out var total);
+            var update = ugc.GetItemUpdateProgress(handle);
 
-            if (total > 0)
+            if (update.BytesTotal > 0)
             {
-                progress?.Report((float)processed / total);
+                progress?.Report((float)update.BytesProcessed / update.BytesTotal);
             }
         }).ConfigureAwait(false);
 
-        if (result.m_eResult != EResult.k_EResultOK)
+        if (result.Result != EResult.OK)
         {
-            throw new InvalidOperationException($"SubmitItemUpdate failed: {result.m_eResult}");
+            throw new InvalidOperationException($"SubmitItemUpdate failed: {result.Result}");
         }
 
-        return new WorkshopPublishResult(publishedFileId, result.m_bUserNeedsToAcceptWorkshopLegalAgreement);
+        return new WorkshopPublishResult(publishedFileId, result.UserNeedsToAcceptWorkshopLegalAgreement);
     }
 
     private static async Task<ulong> CreateItemAsync()
     {
-        var result = await WaitForCallResultAsync<CreateItemResult_t>(SteamUGC.CreateItem(AppId, EWorkshopFileType.k_EWorkshopFileTypeCommunity)).ConfigureAwait(false);
+        var result = await Steam.WaitForCallResultAsync<CreateItemResult>(Steam.UGC.CreateItem(AppId, EWorkshopFileType.Community)).ConfigureAwait(false);
 
-        if (result.m_eResult != EResult.k_EResultOK)
+        if (result.Result != EResult.OK)
         {
-            throw new InvalidOperationException($"CreateItem failed: {result.m_eResult}");
+            throw new InvalidOperationException($"CreateItem failed: {result.Result}");
         }
 
-        return result.m_nPublishedFileId.m_PublishedFileId;
-    }
-
-    private static async Task<T> WaitForCallResultAsync<T>(SteamAPICall_t call, Action? onPoll = null)
-    {
-        var completion = new TaskCompletionSource<T>();
-
-        using var callResult = CallResult<T>.Create((result, ioFailure) =>
-        {
-            if (ioFailure)
-            {
-                completion.SetException(new IOException("Steam API call failed."));
-            }
-            else
-            {
-                completion.SetResult(result);
-            }
-        });
-
-        callResult.Set(call);
-
-        while (!completion.Task.IsCompleted)
-        {
-            SteamAPI.RunCallbacks();
-            onPoll?.Invoke();
-
-            await Task.Delay(CallbackPollInterval).ConfigureAwait(false);
-        }
-
-        return await completion.Task.ConfigureAwait(false);
+        return result.PublishedFileId;
     }
 
     /// <summary>
-    /// Throws when the file is not an image in one of <see cref="ThumbnailFormats"/>, detected from its contents rather than its extension.
+    /// Throws when the file is not an image stb can decode.
     /// </summary>
     public static void ValidateThumbnailImage(string path)
     {
-        using var codec = SKCodec.Create(path);
+        DecodeThumbnailImage(path);
+    }
 
-        if (codec == null || !ThumbnailFormats.Contains(codec.EncodedFormat))
+    private static ImageResult DecodeThumbnailImage(string path)
+    {
+        using var stream = File.OpenRead(path);
+
+        try
         {
-            throw new InvalidDataException($"Thumbnail image '{path}' is {codec?.EncodedFormat.ToString() ?? "not an image"}, supported formats: {string.Join(", ", ThumbnailFormats)}.");
+            return ImageResult.FromStream(stream, StbImageSharp.ColorComponents.RedGreenBlue);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidDataException($"Thumbnail image '{path}' could not be decoded: {exception.Message.Trim()}", exception);
         }
     }
 
@@ -274,20 +240,20 @@ public sealed class WorkshopUploader
     /// </summary>
     private static string WriteThumbnail(string sourcePath, ulong publishedFileId, DateTimeOffset time)
     {
-        using var codec = SKCodec.Create(sourcePath);
-
-        if (codec == null || !ThumbnailFormats.Contains(codec.EncodedFormat))
-        {
-            throw new InvalidDataException($"Thumbnail image '{sourcePath}' is {codec?.EncodedFormat.ToString() ?? "not an image"}, supported formats: {string.Join(", ", ThumbnailFormats)}.");
-        }
-
-        using var bitmap = SKBitmap.Decode(codec)
-            ?? throw new InvalidDataException($"Failed to decode thumbnail image '{sourcePath}'.");
+        var image = DecodeThumbnailImage(sourcePath);
 
         var directory = Path.Combine(Path.GetTempPath(), $"workshopupload_{publishedFileId}");
         Directory.CreateDirectory(directory);
 
-        if (codec.EncodedFormat == SKEncodedImageFormat.Gif)
+        Span<byte> header = stackalloc byte[4];
+        bool isGif;
+
+        using (var source = File.OpenRead(sourcePath))
+        {
+            isGif = source.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length && header.SequenceEqual("GIF8"u8);
+        }
+
+        if (isGif)
         {
             var gifPath = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.gif");
             File.Copy(sourcePath, gifPath, overwrite: true);
@@ -296,11 +262,8 @@ public sealed class WorkshopUploader
 
         var path = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.jpg");
 
-        using var data = bitmap.Encode(SKEncodedImageFormat.Jpeg, ThumbnailJpegQuality)
-            ?? throw new InvalidDataException($"Failed to encode thumbnail image '{sourcePath}' as JPEG.");
-
         using var stream = File.Create(path);
-        data.SaveTo(stream);
+        new ImageWriter().WriteJpg(image.Data, image.Width, image.Height, StbImageWriteSharp.ColorComponents.RedGreenBlue, stream, ThumbnailJpegQuality);
 
         return path;
     }

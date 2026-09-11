@@ -6,7 +6,8 @@
     <OutputType>Exe</OutputType>
     <Description>Command line Counter-Strike 2 workshop uploader</Description>
     <AssemblyName>CS2WorkshopUploader-CLI</AssemblyName>
-    <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
+    <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
     <NoWarn>$(NoWarn);CA1849;CA2007</NoWarn>
   </PropertyGroup>
   <ItemGroup>

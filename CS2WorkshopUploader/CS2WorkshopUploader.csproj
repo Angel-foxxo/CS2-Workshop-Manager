@@ -1,19 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <ProjectBaseVersion>1.0</ProjectBaseVersion>
     <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <Description>Packs a compiled addon from "game/csgo_addons" and publishes it to Steam.</Description>
+    <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.16" />
+    <PackageReference Include="StbImageWriteSharp" Version="1.16.7" />
     <PackageReference Include="ValvePak" Version="6.0.0.182" />
     <PackageReference Include="ValveResourceFormat" Version="20.0.6980" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Steamworks.NET only ships the managed assemblies, the native Steam libraries are from its 2024.8.0 standalone release, https://steamworks.github.io/installation/ -->
-    <None Include="..\ThirdParty\Steamworks.NET\steam_api64.dll" Link="steam_api64.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
-    <None Include="..\ThirdParty\Steamworks.NET\libsteam_api.so" Link="libsteam_api.so" CopyToOutputDirectory="PreserveNewest" Visible="false" />
-    <None Include="..\ThirdParty\Steamworks.NET\libsteam_api.dylib" Link="libsteam_api.dylib" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <ProjectReference Include="..\Steamworks\Steamworks.csproj" />
   </ItemGroup>
 </Project>
