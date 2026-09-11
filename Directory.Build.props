@@ -11,6 +11,13 @@
     <AnalysisMode Condition="'$(Configuration)' == 'Release'">All</AnalysisMode>
     <AnalysisMode Condition="'$(Configuration)' != 'Release'">Recommended</AnalysisMode>
     <Nullable>enable</Nullable>
+
+    <Authors>Angel</Authors>
+    <Copyright>Copyright © Angel</Copyright>
+    <RepositoryUrl>https://github.com/Angel-foxxo/CS2-Workshop-Manager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/Angel-foxxo/CS2-Workshop-Manager</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' != 'Release'">
