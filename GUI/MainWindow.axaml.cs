@@ -14,7 +14,11 @@ namespace GUI;
 
 public partial class MainWindow : Window
 {
-    private const int ThumbnailSize = 128;
+    /// <summary>Thumbnails are decoded at the tile size and drawn smaller in the list.</summary>
+    private const int ThumbnailSize = 240;
+
+    /// <summary>A tile in the tiles view including its margins.</summary>
+    private const double TileWidth = 264;
 
     private static readonly HttpClient Http = new();
 
@@ -28,7 +32,28 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         PublishedItems.ItemsSource = rows;
+        TileItems.ItemsSource = rows;
         Loaded += OnLoaded;
+    }
+
+    /// <summary>
+    /// Sizes the tiles to the whole columns that fit the viewport, so their centering splits the leftover width evenly.
+    /// </summary>
+    private void OnTilesViewportSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        var columns = Math.Max(1, (int)((e.NewSize.Width - TileItems.Margin.Left - TileItems.Margin.Right) / TileWidth));
+
+        TileItems.Width = columns * TileWidth;
+    }
+
+    private void OnViewToggle(object? sender, RoutedEventArgs e)
+    {
+        var tiles = sender == TilesToggle;
+
+        ListToggle.IsChecked = !tiles;
+        TilesToggle.IsChecked = tiles;
+        PublishedItems.IsVisible = !tiles;
+        Tiles.IsVisible = tiles;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)

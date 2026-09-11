@@ -20,6 +20,9 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
     public ulong PublishedFileId => Item.PublishedFileId;
     public string Title => Item.Title;
     public string Tags => string.Join(",", Item.Tags);
+
+    /// <summary>The tags spaced out for the tiles view.</summary>
+    public string TagsLine => string.Join(" | ", Item.Tags);
     public string Description => Item.Description;
     public WorkshopVisibility Visibility => Item.Visibility;
     public DateTimeOffset LastUpdated => Item.TimeUpdated.ToLocalTime();

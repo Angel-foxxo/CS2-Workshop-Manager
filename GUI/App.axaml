@@ -15,5 +15,10 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+        <!-- popups inherit the cursor of the text they open from, which shows the text cursor over the copy menu -->
+        <Style Selector="MenuFlyoutPresenter, MenuItem">
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
     </Application.Styles>
 </Application>
