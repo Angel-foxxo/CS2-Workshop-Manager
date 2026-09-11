@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Labs.Gif;
 using Avalonia.Media.Imaging;
 using CS2WorkshopUploader;
 
@@ -61,20 +62,27 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Steam's image CDN resizes on request, so only a thumbnail sized image is downloaded
-        var url = new Uri(row.Item.PreviewUrl, $"?imw={ThumbnailSize}&imh={ThumbnailSize}&ima=fit&impolicy=Letterbox&letterbox=false");
-
         await ThumbnailDownloads.WaitAsync();
 
         try
         {
-            using var stream = new MemoryStream(await Http.GetByteArrayAsync(url));
+            var preview = await Http.GetByteArrayAsync(row.Item.PreviewUrl);
 
-            row.Thumbnail = Bitmap.DecodeToWidth(stream, ThumbnailSize);
+            if (preview.AsSpan().StartsWith("GIF8"u8))
+            {
+                // the gif control decodes and plays the stream itself, so it keeps the stream
+                row.AnimatedThumbnail = GifStreamSource.FromStream(new MemoryStream(preview));
+            }
+            else
+            {
+                using var stream = new MemoryStream(preview);
+
+                row.Thumbnail = Bitmap.DecodeToWidth(stream, ThumbnailSize);
+            }
         }
-        catch (HttpRequestException)
+        catch (Exception)
         {
-            // no thumbnail is shown for items whose preview can not be fetched
+            // no thumbnail is shown for items whose preview can not be fetched or decoded, whatever the decoder throws
         }
         finally
         {

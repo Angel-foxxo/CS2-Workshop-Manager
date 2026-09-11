@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Avalonia.Labs.Gif;
 using Avalonia.Media.Imaging;
 using CS2WorkshopUploader;
 
@@ -10,6 +11,7 @@ namespace GUI;
 public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
 {
     private Bitmap? thumbnail;
+    private IGifSource? animatedThumbnail;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -31,6 +33,17 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
         {
             thumbnail = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Thumbnail)));
+        }
+    }
+
+    /// <summary>The thumbnail when the preview is a gif, shown animated instead of <see cref="Thumbnail"/>.</summary>
+    public IGifSource? AnimatedThumbnail
+    {
+        get => animatedThumbnail;
+        set
+        {
+            animatedThumbnail = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AnimatedThumbnail)));
         }
     }
 }

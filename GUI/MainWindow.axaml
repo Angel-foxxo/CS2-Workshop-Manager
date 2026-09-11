@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="using:GUI"
+        xmlns:gif="using:Avalonia.Labs.Gif"
         mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
         x:Class="GUI.MainWindow"
         Title="CS2 Workshop Uploader"
@@ -40,7 +41,10 @@
                 <DataGridTemplateColumn Width="136" CanUserSort="False" CanUserResize="False" CanUserReorder="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="local:WorkshopItemRow">
-                            <Image Source="{Binding Thumbnail}" Width="128" Height="128" Stretch="Uniform" Margin="4" />
+                            <Panel Width="128" Height="128" Margin="4">
+                                <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
+                                <gif:GifImage Source="{Binding AnimatedThumbnail}" Stretch="Uniform" IsVisible="{Binding AnimatedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </Panel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
