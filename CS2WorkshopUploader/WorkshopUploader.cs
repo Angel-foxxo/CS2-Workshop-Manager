@@ -82,6 +82,8 @@ public sealed class WorkshopUploader
 
     public const int ThumbnailJpegQuality = 75;
 
+    public static readonly SKEncodedImageFormat[] ThumbnailFormats = [SKEncodedImageFormat.Png, SKEncodedImageFormat.Jpeg, SKEncodedImageFormat.Gif, SKEncodedImageFormat.Webp];
+
     public static readonly string[] DefaultTags = ["CS2", "Map"];
 
     private static readonly TimeSpan CallbackPollInterval = TimeSpan.FromMilliseconds(50);
@@ -187,7 +189,7 @@ public sealed class WorkshopUploader
 
         if (options.ThumbnailImagePath != null)
         {
-            SteamUGC.SetItemPreview(handle, WriteThumbnailJpeg(options.ThumbnailImagePath, publishedFileId, publishTime));
+            SteamUGC.SetItemPreview(handle, WriteThumbnail(options.ThumbnailImagePath, publishedFileId, publishTime));
         }
 
         SteamUGC.SetItemContent(handle, contentPath);
@@ -255,15 +257,42 @@ public sealed class WorkshopUploader
     }
 
     /// <summary>
-    /// Steam only accepts small thumbnail images (1 mb or less) so the thumbnail is transformed into a JPEG.
+    /// Throws when the file is not an image in one of <see cref="ThumbnailFormats"/>, detected from its contents rather than its extension.
     /// </summary>
-    private static string WriteThumbnailJpeg(string sourcePath, ulong publishedFileId, DateTimeOffset time)
+    public static void ValidateThumbnailImage(string path)
     {
-        using var bitmap = SKBitmap.Decode(sourcePath)
+        using var codec = SKCodec.Create(path);
+
+        if (codec == null || !ThumbnailFormats.Contains(codec.EncodedFormat))
+        {
+            throw new InvalidDataException($"Thumbnail image '{path}' is {codec?.EncodedFormat.ToString() ?? "not an image"}, supported formats: {string.Join(", ", ThumbnailFormats)}.");
+        }
+    }
+
+    /// <summary>
+    /// Steam only accepts small thumbnail images (1 mb or less) so the thumbnail is transformed into a JPEG, except for gifs which are uploaded unchanged.
+    /// </summary>
+    private static string WriteThumbnail(string sourcePath, ulong publishedFileId, DateTimeOffset time)
+    {
+        using var codec = SKCodec.Create(sourcePath);
+
+        if (codec == null || !ThumbnailFormats.Contains(codec.EncodedFormat))
+        {
+            throw new InvalidDataException($"Thumbnail image '{sourcePath}' is {codec?.EncodedFormat.ToString() ?? "not an image"}, supported formats: {string.Join(", ", ThumbnailFormats)}.");
+        }
+
+        using var bitmap = SKBitmap.Decode(codec)
             ?? throw new InvalidDataException($"Failed to decode thumbnail image '{sourcePath}'.");
 
         var directory = Path.Combine(Path.GetTempPath(), $"workshopupload_{publishedFileId}");
         Directory.CreateDirectory(directory);
+
+        if (codec.EncodedFormat == SKEncodedImageFormat.Gif)
+        {
+            var gifPath = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.gif");
+            File.Copy(sourcePath, gifPath, overwrite: true);
+            return gifPath;
+        }
 
         var path = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.jpg");
 

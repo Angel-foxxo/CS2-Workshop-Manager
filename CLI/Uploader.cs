@@ -114,10 +114,23 @@ public static class Uploader
             changenote = await File.ReadAllTextAsync(changenote_file);
         }
 
-        if (thumbnail != null && !File.Exists(thumbnail))
+        if (thumbnail != null)
         {
-            Console.Error.WriteLine($"Thumbnail image \"{thumbnail}\" does not exist.");
-            return 1;
+            if (!File.Exists(thumbnail))
+            {
+                Console.Error.WriteLine($"Thumbnail image \"{thumbnail}\" does not exist.");
+                return 1;
+            }
+
+            try
+            {
+                WorkshopUploader.ValidateThumbnailImage(thumbnail);
+            }
+            catch (InvalidDataException exception)
+            {
+                Console.Error.WriteLine(exception.Message);
+                return 1;
+            }
         }
 
         if (stage_only && id == null)
