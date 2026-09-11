@@ -1,12 +1,15 @@
 <Project>
   <!-- imported after each project file so ProjectBaseVersion can be set per csproj -->
   <PropertyGroup>
-    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
-    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
+    <!-- the release workflow passes ProjectVersion explicitly, every other build is numbered by the run -->
+    <ProjectVersion Condition="'$(ProjectVersion)' == '' and '$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
+    <ProjectVersion Condition="'$(ProjectVersion)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
 
     <AssemblyVersion>$(ProjectBaseVersion)</AssemblyVersion>
-    <FileVersion>$(ProjectVersion)</FileVersion>
     <Version>$(ProjectVersion)</Version>
+    <!-- file versions are numeric only, so a prerelease suffix is dropped -->
+    <FileVersion Condition="!$(ProjectVersion.Contains('-'))">$(ProjectVersion)</FileVersion>
+    <FileVersion Condition="$(ProjectVersion.Contains('-'))">$(ProjectVersion.Substring(0, $(ProjectVersion.IndexOf('-'))))</FileVersion>
   </PropertyGroup>
 
   <!-- native package assets that end up in the output without being used: VRF's shader tooling and image library -->

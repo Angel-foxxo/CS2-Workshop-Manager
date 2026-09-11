@@ -7,8 +7,6 @@ on:
   push:
     branches:
     - main
-    tags:
-    - '*'
     paths-ignore:
     - '*.md'
   pull_request:
@@ -18,7 +16,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' && github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -70,51 +68,3 @@ jobs:
       with:
         name: ${{ matrix.artifact }}
         path: CLI/bin/Release/${{ matrix.runtime }}/publish
-
-  release:
-    name: Create release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write # create the draft release
-      id-token: write # oidc for nuget login
-
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v8
-      with:
-        path: artifacts
-
-    - name: Create release files
-      run: |
-       set -eux
-       mkdir release
-       chmod +x artifacts/CS2WorkshopUploader-CLI-linux-x64/CS2WorkshopUploader-CLI
-       chmod +x artifacts/CS2WorkshopUploader-CLI-macos-arm64/CS2WorkshopUploader-CLI
-       zip -9j release/CS2WorkshopUploader-CLI-windows-x64.zip artifacts/CS2WorkshopUploader-CLI-windows-x64/*
-       zip -9j release/CS2WorkshopUploader-CLI-linux-x64.zip artifacts/CS2WorkshopUploader-CLI-linux-x64/*
-       zip -9j release/CS2WorkshopUploader-CLI-macos-arm64.zip artifacts/CS2WorkshopUploader-CLI-macos-arm64/*
-       mv artifacts/nupkg/CS2WorkshopUploader.*.nupkg release/CS2WorkshopUploader.nupkg
-
-    - name: Display structure of archived files
-      run: ls -Rl
-      working-directory: release
-
-    - name: Release
-      uses: softprops/action-gh-release@v3
-      with:
-        draft: true
-        files: release/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: NuGet login
-      uses: NuGet/login@v1
-      id: login
-      with:
-        user: ${{ secrets.NUGET_USER }}
-
-    - name: Publish to NuGet Gallery
-      run: dotnet nuget push release/CS2WorkshopUploader.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
