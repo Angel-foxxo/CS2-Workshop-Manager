@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <ProjectBaseVersion>1.0</ProjectBaseVersion>
     <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <Description>Packs a compiled addon from "game/csgo_addons" and publishes it to Steam.</Description>

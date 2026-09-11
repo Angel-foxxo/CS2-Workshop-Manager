@@ -1,0 +1,11 @@
+<Project>
+  <!-- imported after each project file so ProjectBaseVersion can be set per csproj -->
+  <PropertyGroup>
+    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
+    <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
+
+    <AssemblyVersion>$(ProjectBaseVersion)</AssemblyVersion>
+    <FileVersion>$(ProjectVersion)</FileVersion>
+    <Version>$(ProjectVersion)</Version>
+  </PropertyGroup>
+</Project>
