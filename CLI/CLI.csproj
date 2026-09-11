@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <OutputType>Exe</OutputType>
+    <Description>Command line Counter-Strike 2 workshop uploader</Description>
+    <AssemblyName>CS2WorkshopUploader-CLI</AssemblyName>
+    <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
+    <NoWarn>$(NoWarn);CA1849;CA2007</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ConsoleAppFramework" Version="5.7.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CS2WorkshopUploader\CS2WorkshopUploader.csproj" />
+  </ItemGroup>
+</Project>

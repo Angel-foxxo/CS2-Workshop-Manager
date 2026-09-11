@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CLI/CLI.csproj" />
+  <Project Path="CS2WorkshopUploader/CS2WorkshopUploader.csproj" />
+</Solution>
