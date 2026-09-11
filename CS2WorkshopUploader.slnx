@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="CLI/CLI.csproj" />
   <Project Path="CS2WorkshopUploader/CS2WorkshopUploader.csproj" />
+  <Project Path="GUI/GUI.csproj" />
   <Project Path="Steamworks/Steamworks.csproj" />
 </Solution>

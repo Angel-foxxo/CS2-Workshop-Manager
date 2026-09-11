@@ -75,13 +75,13 @@ jobs:
         include:
         - os: windows-latest
           runtime: win-x64
-          artifact: CS2WorkshopUploader-CLI-windows-x64
+          platform: windows-x64
         - os: ubuntu-latest
           runtime: linux-x64
-          artifact: CS2WorkshopUploader-CLI-linux-x64
+          platform: linux-x64
         - os: macos-latest
           runtime: osx-arm64
-          artifact: CS2WorkshopUploader-CLI-macos-arm64
+          platform: macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -104,6 +104,9 @@ jobs:
     - name: Publish CS2WorkshopUploader-CLI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} CLI/CLI.csproj
 
+    - name: Publish CS2WorkshopUploader-GUI
+      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} GUI/GUI.csproj
+
     - name: Upload nupkg
       uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
@@ -114,8 +117,14 @@ jobs:
     - name: Upload CS2WorkshopUploader-CLI
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ matrix.artifact }}
+        name: CS2WorkshopUploader-CLI-${{ matrix.platform }}
         path: CLI/bin/Release/${{ matrix.runtime }}/publish
+
+    - name: Upload CS2WorkshopUploader-GUI
+      uses: actions/upload-artifact@v7
+      with:
+        name: CS2WorkshopUploader-GUI-${{ matrix.platform }}
+        path: GUI/bin/Release/${{ matrix.runtime }}/publish
 
   publish:
     name: Publish
@@ -136,11 +145,13 @@ jobs:
       run: |
        set -eux
        mkdir release
-       chmod +x artifacts/CS2WorkshopUploader-CLI-linux-x64/CS2WorkshopUploader-CLI
-       chmod +x artifacts/CS2WorkshopUploader-CLI-macos-arm64/CS2WorkshopUploader-CLI
-       zip -9j release/CS2WorkshopUploader-CLI-windows-x64.zip artifacts/CS2WorkshopUploader-CLI-windows-x64/*
-       zip -9j release/CS2WorkshopUploader-CLI-linux-x64.zip artifacts/CS2WorkshopUploader-CLI-linux-x64/*
-       zip -9j release/CS2WorkshopUploader-CLI-macos-arm64.zip artifacts/CS2WorkshopUploader-CLI-macos-arm64/*
+       for app in CLI GUI; do
+         chmod +x artifacts/CS2WorkshopUploader-${app}-linux-x64/CS2WorkshopUploader-${app}
+         chmod +x artifacts/CS2WorkshopUploader-${app}-macos-arm64/CS2WorkshopUploader-${app}
+         for platform in windows-x64 linux-x64 macos-arm64; do
+           zip -9j release/CS2WorkshopUploader-${app}-${platform}.zip artifacts/CS2WorkshopUploader-${app}-${platform}/*
+         done
+       done
        mv artifacts/nupkg/CS2WorkshopUploader.*.nupkg release/CS2WorkshopUploader.nupkg
 
     - name: Display structure of archived files

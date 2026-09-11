@@ -32,13 +32,13 @@ jobs:
         include:
         - os: windows-latest
           runtime: win-x64
-          artifact: CS2WorkshopUploader-CLI-windows-x64
+          platform: windows-x64
         - os: ubuntu-latest
           runtime: linux-x64
-          artifact: CS2WorkshopUploader-CLI-linux-x64
+          platform: linux-x64
         - os: macos-latest
           runtime: osx-arm64
-          artifact: CS2WorkshopUploader-CLI-macos-arm64
+          platform: macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -56,6 +56,9 @@ jobs:
     - name: Publish CS2WorkshopUploader-CLI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} CLI/CLI.csproj
 
+    - name: Publish CS2WorkshopUploader-GUI
+      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} GUI/GUI.csproj
+
     - name: Upload nupkg
       uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
@@ -66,5 +69,11 @@ jobs:
     - name: Upload CS2WorkshopUploader-CLI
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ matrix.artifact }}
+        name: CS2WorkshopUploader-CLI-${{ matrix.platform }}
         path: CLI/bin/Release/${{ matrix.runtime }}/publish
+
+    - name: Upload CS2WorkshopUploader-GUI
+      uses: actions/upload-artifact@v7
+      with:
+        name: CS2WorkshopUploader-GUI-${{ matrix.platform }}
+        path: GUI/bin/Release/${{ matrix.runtime }}/publish
