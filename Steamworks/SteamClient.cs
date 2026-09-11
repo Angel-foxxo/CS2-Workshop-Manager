@@ -42,6 +42,8 @@ public sealed class SteamClient : IDisposable
     private readonly int user;
     private bool disposed;
 
+    public SteamUser User { get; }
+
     public SteamUGC UGC { get; }
 
     /// <summary>
@@ -86,6 +88,7 @@ public sealed class SteamClient : IDisposable
                 throw new InvalidOperationException("No user is logged into Steam.");
             }
 
+            User = new SteamUser(GetInterface(SteamUser.InterfaceVersion));
             UGC = new SteamUGC(GetInterface(SteamUGC.InterfaceVersion));
         }
         catch

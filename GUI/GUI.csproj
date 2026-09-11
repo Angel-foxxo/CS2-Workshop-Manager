@@ -7,13 +7,19 @@
     <Description>Counter-Strike 2 Workshop manager</Description>
     <AssemblyName>CS2WorkshopUploader-GUI</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
-    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <!-- one self contained exe with the native libraries unpacked on first run, like Source2Viewer -->
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- CA2007: continuations must stay on the UI thread -->
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
     <!-- Avalonia renders with SkiaSharp, so its native library must stay in the output -->
     <UsesSkiaSharp>true</UsesSkiaSharp>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />

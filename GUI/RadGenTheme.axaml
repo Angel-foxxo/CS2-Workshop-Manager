@@ -1,0 +1,57 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- RadGen's dark and light palettes, https://github.com/Angel-foxxo/RadGen, on top of the Fluent theme's resource keys -->
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+            <Color x:Key="RadGenAppColor">#D7D7D7</Color>
+            <Color x:Key="RadGenAppSoftColor">#D0D0D0</Color>
+            <Color x:Key="RadGenBorderColor">#ACACAC</Color>
+            <Color x:Key="RadGenBorderSoftColor">#919191</Color>
+            <Color x:Key="RadGenContrastColor">#000000</Color>
+            <Color x:Key="RadGenContrastSoftColor">#6E6E6E</Color>
+            <Color x:Key="RadGenAccentColor">#2EACD4</Color>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="RadGenAppColor">#1A1B1E</Color>
+            <Color x:Key="RadGenAppSoftColor">#232628</Color>
+            <Color x:Key="RadGenBorderColor">#26292B</Color>
+            <Color x:Key="RadGenBorderSoftColor">#2D3033</Color>
+            <Color x:Key="RadGenContrastColor">#EAEAEA</Color>
+            <Color x:Key="RadGenContrastSoftColor">#C4C7CE</Color>
+            <Color x:Key="RadGenAccentColor">#3A558C</Color>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <SolidColorBrush x:Key="RadGenAppBrush" Color="{DynamicResource RadGenAppColor}" />
+    <SolidColorBrush x:Key="RadGenAppSoftBrush" Color="{DynamicResource RadGenAppSoftColor}" />
+    <SolidColorBrush x:Key="RadGenBorderBrush" Color="{DynamicResource RadGenBorderColor}" />
+    <SolidColorBrush x:Key="RadGenBorderSoftBrush" Color="{DynamicResource RadGenBorderSoftColor}" />
+    <SolidColorBrush x:Key="RadGenContrastBrush" Color="{DynamicResource RadGenContrastColor}" />
+    <SolidColorBrush x:Key="RadGenContrastSoftBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
+    <SolidColorBrush x:Key="RadGenAccentBrush" Color="{DynamicResource RadGenAccentColor}" />
+
+    <!-- windows: main colour with contrast text -->
+    <SolidColorBrush x:Key="SystemRegionBrush" Color="{DynamicResource RadGenAppColor}" />
+    <SolidColorBrush x:Key="SystemControlForegroundBaseHighBrush" Color="{DynamicResource RadGenContrastColor}" />
+    <StaticResource x:Key="SystemAccentColor" ResourceKey="RadGenAccentColor" />
+
+    <!-- data grid: soft main colour panel, faded soft contrast grid lines, accent selection -->
+    <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{DynamicResource RadGenAppSoftColor}" />
+    <SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
+    <SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="{DynamicResource RadGenBorderColor}" />
+    <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="{DynamicResource RadGenBorderSoftColor}" />
+    <SolidColorBrush x:Key="DataGridColumnHeaderDraggedBackgroundBrush" Color="{DynamicResource RadGenBorderSoftColor}" />
+    <SolidColorBrush x:Key="DataGridRowHoveredBackgroundColor" Color="{DynamicResource RadGenBorderColor}" />
+    <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="{DynamicResource RadGenAccentColor}" />
+    <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="{DynamicResource RadGenAccentColor}" />
+    <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="{DynamicResource RadGenAccentColor}" />
+    <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="{DynamicResource RadGenAccentColor}" />
+    <SolidColorBrush x:Key="DataGridGridLinesBrush" Opacity="0.4" Color="{DynamicResource RadGenContrastSoftColor}" />
+    <SolidColorBrush x:Key="DataGridFillerColumnGridLinesBrush" Color="{DynamicResource RadGenBorderSoftColor}" />
+    <!-- headers keep no room for a sort arrow until a column is sorted, so labels get the whole column -->
+    <x:Double x:Key="DataGridSortIconMinWidth">0</x:Double>
+    <x:Double x:Key="DataGridRowSelectedBackgroundOpacity">1</x:Double>
+    <x:Double x:Key="DataGridRowSelectedHoveredBackgroundOpacity">1</x:Double>
+    <x:Double x:Key="DataGridRowSelectedUnfocusedBackgroundOpacity">1</x:Double>
+    <x:Double x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundOpacity">1</x:Double>
+</ResourceDictionary>

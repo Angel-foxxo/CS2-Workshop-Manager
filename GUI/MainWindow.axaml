@@ -2,7 +2,75 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:local="using:GUI"
+        mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
         x:Class="GUI.MainWindow"
-        Title="CS2 Workshop Manager">
+        Title="CS2 Workshop Uploader"
+        Width="1600" Height="900"
+        WindowStartupLocation="CenterScreen">
+    <DockPanel>
+        <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource RadGenContrastBrush}" />
+
+        <DataGrid Name="PublishedItems"
+                  x:DataType="local:WorkshopItemRow"
+                  IsReadOnly="True"
+                  CanUserReorderColumns="True"
+                  CanUserResizeColumns="True"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  RowHeight="136"
+                  Background="{DynamicResource RadGenAppSoftBrush}"
+                  BorderThickness="0">
+            <DataGrid.Styles>
+                <Style Selector="DataGridCell TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                </Style>
+                <Style Selector="DataGridColumnHeader TextBlock">
+                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                </Style>
+                <!-- rows are selected as a whole, so the outline the theme draws around the focused cell is only noise -->
+                <Style Selector="DataGridCell:focus /template/ Grid#FocusVisual">
+                    <Setter Property="IsVisible" Value="False" />
+                </Style>
+                <Style Selector="DataGridCell:current /template/ Rectangle#CurrencyVisual">
+                    <Setter Property="IsVisible" Value="False" />
+                </Style>
+            </DataGrid.Styles>
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Width="136" CanUserSort="False" CanUserResize="False" CanUserReorder="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="local:WorkshopItemRow">
+                            <Image Source="{Binding Thumbnail}" Width="128" Height="128" Stretch="Uniform" Margin="4" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="280" MinWidth="100" />
+                <DataGridTextColumn Header="Tags" Binding="{Binding Tags}" Width="150" MinWidth="100" />
+                <DataGridTemplateColumn Header="Description" Width="*" MinWidth="200">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="local:WorkshopItemRow">
+                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="6" Margin="8,4" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Visibility" Binding="{Binding Visibility}" Width="90" MinWidth="90" />
+                <DataGridTemplateColumn Header="Last Updated" Width="150" MinWidth="110" SortMemberPath="LastUpdated">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="local:WorkshopItemRow">
+                            <TextBlock Text="{Binding LastUpdated, StringFormat='{}{0:MM/dd/yyyy}&#10;{0:HH:mm:ss}'}" Margin="12,0" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Date Created" Width="150" MinWidth="110" SortMemberPath="DateCreated">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="local:WorkshopItemRow">
+                            <TextBlock Text="{Binding DateCreated, StringFormat='{}{0:MM/dd/yyyy}&#10;{0:HH:mm:ss}'}" Margin="12,0" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Size" Binding="{Binding SizeMegabytes, StringFormat='{}{0:N2} MB'}" Width="110" MinWidth="70" />
+                <DataGridTextColumn Header="Published ID" Binding="{Binding PublishedFileId}" Width="140" MinWidth="70" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
 </Window>

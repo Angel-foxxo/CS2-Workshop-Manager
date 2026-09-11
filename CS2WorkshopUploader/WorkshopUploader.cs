@@ -53,6 +53,23 @@ public sealed record WorkshopPublishResult(ulong PublishedFileId, bool NeedsWork
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
 }
 
+/// <summary>
+/// A workshop item as the workshop manager lists it.
+/// </summary>
+public sealed record WorkshopItem(
+    ulong PublishedFileId,
+    string Title,
+    string Description,
+    IReadOnlyList<string> Tags,
+    WorkshopVisibility Visibility,
+    DateTimeOffset TimeCreated,
+    DateTimeOffset TimeUpdated,
+    long Size,
+    Uri? PreviewUrl)
+{
+    public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
+}
+
 public sealed class SourceFolderConflictException : InvalidOperationException
 {
     public ulong PublishedFileId { get; }
@@ -145,6 +162,72 @@ public sealed class WorkshopUploader
         var previous = AddonPackager.ReadPublishedSourceFolder(installDirectory);
 
         return previous != null && !previous.Equals(addonName, StringComparison.OrdinalIgnoreCase) ? previous : null;
+    }
+
+    /// <summary>
+    /// Every workshop item the logged in account has published for Counter-Strike 2 with the CS2 tag, most recently updated first, as Steam's pages of them arrive.
+    /// </summary>
+    public static async IAsyncEnumerable<WorkshopItem> GetPublishedItemsAsync()
+    {
+        var client = Steam;
+        var ugc = client.UGC;
+        var accountId = client.User.GetAccountId();
+
+        var count = 0u;
+
+        for (var page = 1u; ; page++)
+        {
+            var query = ugc.CreateQueryUserUGCRequest(accountId, EUserUGCList.Published, EUGCMatchingUGCType.Items, EUserUGCListSortOrder.LastUpdatedDesc, AppId, AppId, page);
+
+            if (query == SteamUGC.InvalidQueryHandle)
+            {
+                throw new InvalidOperationException("Failed to create a workshop query.");
+            }
+
+            try
+            {
+                // only items tagged as CS2 maps, the tag the workshop manager always sets
+                ugc.AddRequiredTag(query, DefaultTags[0]);
+                ugc.SetReturnLongDescription(query, true);
+
+                var completed = await client.WaitForCallResultAsync<SteamUGCQueryCompleted>(ugc.SendQueryUGCRequest(query)).ConfigureAwait(false);
+
+                if (completed.Result != EResult.OK)
+                {
+                    throw new InvalidOperationException($"Workshop query failed: {completed.Result}");
+                }
+
+                for (var index = 0u; index < completed.NumResultsReturned; index++)
+                {
+                    if (ugc.GetQueryUGCResult(query, index) is not SteamUGCDetails details)
+                    {
+                        continue;
+                    }
+
+                    count++;
+
+                    yield return new WorkshopItem(
+                        details.PublishedFileId,
+                        details.Title,
+                        details.Description,
+                        details.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                        (WorkshopVisibility)details.Visibility,
+                        DateTimeOffset.FromUnixTimeSeconds(details.TimeCreated),
+                        DateTimeOffset.FromUnixTimeSeconds(details.TimeUpdated),
+                        (long)details.TotalFilesSize,
+                        ugc.GetQueryUGCPreviewURL(query, index));
+                }
+
+                if (completed.NumResultsReturned < SteamUGC.ResultsPerPage || count >= completed.TotalMatchingResults)
+                {
+                    yield break;
+                }
+            }
+            finally
+            {
+                ugc.ReleaseQueryUGCRequest(query);
+            }
+        }
     }
 
     public async Task<WorkshopPublishResult> PublishAsync(AddonPublishOptions options, IProgress<float>? progress = null)
