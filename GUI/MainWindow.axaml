@@ -101,7 +101,7 @@
                         <TextBlock Text="Delete" />
                     </StackPanel>
                 </Button>
-                <Button Classes="tool">
+                <Button Name="RefreshButton" Classes="tool" Click="OnRefresh">
                     <StackPanel>
                         <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/reload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="Refresh" />

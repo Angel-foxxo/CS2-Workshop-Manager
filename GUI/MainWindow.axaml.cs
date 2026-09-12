@@ -58,6 +58,23 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
+        await LoadItemsAsync();
+    }
+
+    private async void OnRefresh(object? sender, RoutedEventArgs e)
+    {
+        await LoadItemsAsync();
+    }
+
+    /// <summary>
+    /// Replaces the list with the account's published items as Steam returns them.
+    /// </summary>
+    private async Task LoadItemsAsync()
+    {
+        // a refresh while a load is still streaming in would add to a list that was just cleared
+        RefreshButton.IsEnabled = false;
+        rows.Clear();
+
         var thumbnails = new List<Task>();
 
         try
@@ -75,6 +92,10 @@ public partial class MainWindow : Window
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
             Status.Text = exception.Message;
+        }
+        finally
+        {
+            RefreshButton.IsEnabled = true;
         }
 
         await Task.WhenAll(thumbnails);
