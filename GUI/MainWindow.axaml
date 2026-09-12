@@ -101,7 +101,7 @@
                         <TextBlock Text="Edit" />
                     </StackPanel>
                 </Button>
-                <Button Classes="tool">
+                <Button Classes="tool" Click="OnView">
                     <StackPanel>
                         <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/view.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="View" />

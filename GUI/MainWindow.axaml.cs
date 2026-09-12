@@ -69,13 +69,23 @@ public partial class MainWindow : Window
         await LoadItemsAsync();
     }
 
+    private async void OnView(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedRow("view") is not { } row)
+        {
+            return;
+        }
+
+        if (!await Launcher.LaunchUriAsync(row.Item.Url))
+        {
+            Status.Text = $"Could not open {row.Item.Url}";
+        }
+    }
+
     private async void OnDelete(object? sender, RoutedEventArgs e)
     {
-        var selected = Tiles.IsVisible ? TileItems.SelectedItem : PublishedItems.SelectedItem;
-
-        if (selected is not WorkshopItemRow row)
+        if (SelectedRow("delete") is not { } row)
         {
-            Status.Text = "Select a map to delete.";
             return;
         }
 
@@ -101,6 +111,22 @@ public partial class MainWindow : Window
         {
             DeleteButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>
+    /// The map selected in whichever view is showing, or null after telling the user to select one for the action.
+    /// </summary>
+    private WorkshopItemRow? SelectedRow(string action)
+    {
+        var selected = Tiles.IsVisible ? TileItems.SelectedItem : PublishedItems.SelectedItem;
+
+        if (selected is WorkshopItemRow row)
+        {
+            return row;
+        }
+
+        Status.Text = $"Select a map to {action}.";
+        return null;
     }
 
     /// <summary>
