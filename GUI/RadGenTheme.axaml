@@ -10,6 +10,10 @@
             <Color x:Key="RadGenContrastColor">#000000</Color>
             <Color x:Key="RadGenContrastSoftColor">#6E6E6E</Color>
             <Color x:Key="RadGenAccentColor">#2EACD4</Color>
+            <!-- the main colour a quarter of the way to the accent, for the window gradient -->
+            <Color x:Key="RadGenAppAccentColor">#ADCCD6</Color>
+            <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
+            <Color x:Key="RadGenShadeColor">#FFFFFF</Color>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <Color x:Key="RadGenAppColor">#1A1B1E</Color>
@@ -19,16 +23,28 @@
             <Color x:Key="RadGenContrastColor">#EAEAEA</Color>
             <Color x:Key="RadGenContrastSoftColor">#C4C7CE</Color>
             <Color x:Key="RadGenAccentColor">#3A558C</Color>
+            <!-- the main colour a quarter of the way to the accent, for the window gradient -->
+            <Color x:Key="RadGenAppAccentColor">#222A3A</Color>
+            <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
+            <Color x:Key="RadGenShadeColor">#000000</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
     <SolidColorBrush x:Key="RadGenAppBrush" Color="{DynamicResource RadGenAppColor}" />
     <SolidColorBrush x:Key="RadGenAppSoftBrush" Color="{DynamicResource RadGenAppSoftColor}" />
+    <!-- the main views shade the window gradient instead of painting over it -->
+    <SolidColorBrush x:Key="RadGenShadeBrush" Color="{DynamicResource RadGenShadeColor}" Opacity="0.2" />
     <SolidColorBrush x:Key="RadGenBorderBrush" Color="{DynamicResource RadGenBorderColor}" />
     <SolidColorBrush x:Key="RadGenBorderSoftBrush" Color="{DynamicResource RadGenBorderSoftColor}" />
     <SolidColorBrush x:Key="RadGenContrastBrush" Color="{DynamicResource RadGenContrastColor}" />
     <SolidColorBrush x:Key="RadGenContrastSoftBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
     <SolidColorBrush x:Key="RadGenAccentBrush" Color="{DynamicResource RadGenAccentColor}" />
+
+    <!-- window background: a subtle glow of the accent in the middle, fading to the main colour at the edges -->
+    <RadialGradientBrush x:Key="RadGenBackgroundBrush" Center="50%,50%" GradientOrigin="90%,0%" RadiusX="75%" RadiusY="75%">
+        <GradientStop Offset="0" Color="{DynamicResource RadGenAppAccentColor}" />
+        <GradientStop Offset="1" Color="{DynamicResource RadGenAppColor}" />
+    </RadialGradientBrush>
 
     <!-- windows: main colour with contrast text -->
     <SolidColorBrush x:Key="SystemRegionBrush" Color="{DynamicResource RadGenAppColor}" />
@@ -36,7 +52,7 @@
     <StaticResource x:Key="SystemAccentColor" ResourceKey="RadGenAccentColor" />
 
     <!-- data grid: soft main colour panel, faded soft contrast grid lines, accent selection -->
-    <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{DynamicResource RadGenAppSoftColor}" />
+    <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{DynamicResource RadGenShadeColor}" Opacity="0.1" />
     <SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
     <SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="{DynamicResource RadGenBorderColor}" />
     <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="{DynamicResource RadGenBorderSoftColor}" />

@@ -9,13 +9,14 @@
         Title="CS2 Workshop Manager"
         Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
         Width="1600" Height="900"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource RadGenBackgroundBrush}">
     <Window.Styles>
         <!-- toolbar buttons and the view toggles: icon over label, like the workshop manager's -->
         <Style Selector=":is(Button).tool">
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="MinWidth" Value="52" />
-            <Setter Property="Background" Value="{DynamicResource RadGenAppSoftBrush}" />
+            <Setter Property="Background" Value="{DynamicResource RadGenShadeBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource RadGenBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="5" />
@@ -108,7 +109,7 @@
 
         <!-- the two views share the space left by the bars, only one is visible -->
         <Panel>
-        <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource RadGenAppSoftBrush}">
+        <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource RadGenShadeBrush}">
             <!-- this panel is always the viewport width, which sizes the tiles to whole columns, see OnTilesViewportSizeChanged -->
             <Panel SizeChanged="OnTilesViewportSizeChanged">
                 <ItemsControl Name="TileItems" Margin="4" HorizontalAlignment="Center">
@@ -152,7 +153,7 @@
                   HeadersVisibility="Column"
                   RowHeight="136"
                   ClipboardCopyMode="None"
-                  Background="{DynamicResource RadGenAppSoftBrush}"
+                  Background="{DynamicResource RadGenShadeBrush}"
                   BorderThickness="0">
             <DataGrid.Styles>
                 <!-- cell text can be selected and copied, so it is wrapped and padded like the plain text cells would be -->
