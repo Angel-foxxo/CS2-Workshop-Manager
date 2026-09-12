@@ -7,6 +7,7 @@
     <Description>Counter-Strike 2 Workshop manager</Description>
     <AssemblyName>CS2WorkshopUploader-GUI</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <!-- one self contained exe with the native libraries unpacked on first run, like Source2Viewer -->
     <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
     <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
@@ -31,5 +32,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CS2WorkshopUploader\CS2WorkshopUploader.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- the window icon, the exe icon above is only used by Windows -->
+    <AvaloniaResource Include="assets\icon.ico" />
   </ItemGroup>
 </Project>

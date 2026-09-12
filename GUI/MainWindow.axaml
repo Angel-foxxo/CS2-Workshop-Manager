@@ -7,6 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
         x:Class="GUI.MainWindow"
         Title="CS2 Workshop Uploader"
+        Icon="avares://CS2WorkshopUploader-GUI/assets/icon.ico"
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen">
     <DockPanel>
