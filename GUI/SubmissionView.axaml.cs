@@ -29,6 +29,15 @@ public partial class SubmissionView : UserControl
     /// <summary>The workshop manager refuses descriptions and update notes of this many characters or more.</summary>
     private const int MaxTextLength = 8000;
 
+    /// <summary>The visibilities as the dropdown lists them, with the workshop manager's wording.</summary>
+    private static readonly VisibilityChoice[] VisibilityChoices =
+    [
+        new(WorkshopVisibility.Public, "Public"),
+        new(WorkshopVisibility.FriendsOnly, "Friends Only"),
+        new(WorkshopVisibility.Private, "Private"),
+        new(WorkshopVisibility.Unlisted, "Unlisted"),
+    ];
+
     private readonly List<CheckBox> gameModeBoxes = [];
 
     private SubmissionMode mode;
@@ -47,7 +56,7 @@ public partial class SubmissionView : UserControl
     {
         InitializeComponent();
 
-        VisibilityBox.ItemsSource = Enum.GetValues<WorkshopVisibility>();
+        VisibilityBox.ItemsSource = VisibilityChoices;
 
         foreach (var tag in WorkshopManager.GameModeTags)
         {
@@ -89,7 +98,7 @@ public partial class SubmissionView : UserControl
         ChangeNoteBox.Text = string.Empty;
         TitleBox.Text = item?.Title ?? string.Empty;
         DescriptionBox.Text = item?.Description ?? string.Empty;
-        VisibilityBox.SelectedItem = item?.Visibility ?? WorkshopVisibility.Private;
+        VisibilityBox.SelectedItem = Array.Find(VisibilityChoices, choice => choice.Value == (item?.Visibility ?? WorkshopVisibility.Private));
         Status.Text = string.Empty;
 
         foreach (var box in gameModeBoxes)
@@ -334,7 +343,7 @@ public partial class SubmissionView : UserControl
         var title = TitleBox.Text ?? string.Empty;
         var description = DescriptionBox.Text ?? string.Empty;
         var changeNote = ChangeNoteBox.Text ?? string.Empty;
-        var visibility = (WorkshopVisibility)VisibilityBox.SelectedItem!;
+        var visibility = ((VisibilityChoice)VisibilityBox.SelectedItem!).Value;
         var tags = BuildTags();
         var edits = mode == SubmissionMode.Edit;
 
@@ -418,5 +427,14 @@ public partial class SubmissionView : UserControl
 
         finished = null;
         task?.TrySetResult(result);
+    }
+
+    /// <summary>A visibility and the label the dropdown shows for it.</summary>
+    private sealed record VisibilityChoice(WorkshopVisibility Value, string Label)
+    {
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 }
