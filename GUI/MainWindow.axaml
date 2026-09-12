@@ -10,13 +10,83 @@
         Icon="avares://CS2WorkshopUploader-GUI/assets/icon.ico"
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen">
+    <Window.Styles>
+        <!-- toolbar buttons: icon over label, like the workshop manager's -->
+        <Style Selector="Button.tool">
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="MinWidth" Value="52" />
+            <Setter Property="Background" Value="{DynamicResource RadGenAppSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource RadGenBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="Button.tool:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RadGenBorderSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource RadGenBorderSoftBrush}" />
+        </Style>
+        <Style Selector="Button.tool StackPanel">
+            <Setter Property="Spacing" Value="4" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.tool Image">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+        </Style>
+        <Style Selector="Button.tool TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource RadGenContrastBrush}" />
+        </Style>
+    </Window.Styles>
+
     <DockPanel>
         <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource RadGenContrastBrush}" />
 
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,6" Spacing="4">
-            <ToggleButton Name="ListToggle" Content="List" IsChecked="True" Click="OnViewToggle" />
-            <ToggleButton Name="TilesToggle" Content="Tiles" Click="OnViewToggle" />
-        </StackPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="8,6">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                <ToggleButton Name="ListToggle" Content="List" IsChecked="True" Click="OnViewToggle" />
+                <ToggleButton Name="TilesToggle" Content="Tiles" Click="OnViewToggle" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Classes="tool">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/new.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="New" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="tool">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/reupload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Re-Upload" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="tool">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/edit.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Edit" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="tool">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/view.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="View" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="tool">
+                    <StackPanel Margin="2">
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/delete.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Delete" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="tool">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/reload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Refresh" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </DockPanel>
 
         <!-- the two views share the space left by the bars, only one is visible -->
         <Panel>
