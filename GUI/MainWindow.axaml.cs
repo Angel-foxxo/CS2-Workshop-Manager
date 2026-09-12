@@ -102,18 +102,18 @@ public partial class MainWindow : Window
         }
         catch (DirectoryNotFoundException exception)
         {
-            Status.Text = exception.Message;
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Game Not Found", exception.Message);
             return;
         }
 
         Main.IsVisible = false;
         Submission.IsVisible = true;
 
-        WorkshopPublishResult? result;
+        SubmissionView.PublishedSubmission? published;
 
         try
         {
-            result = await Submission.ShowAsync(mode, manager, row);
+            published = await Submission.ShowAsync(mode, manager, row);
         }
         finally
         {
@@ -121,15 +121,20 @@ public partial class MainWindow : Window
             Main.IsVisible = true;
         }
 
-        if (result != null)
+        if (published != null)
         {
             // the workshop manager opens the published item's page
-            await Launcher.LaunchUriAsync(result.Url);
+            await Launcher.LaunchUriAsync(published.Result.Url);
             await LoadItemsAsync();
 
-            Status.Text = result.NeedsWorkshopAgreement
-                ? $"Published {result.PublishedFileId}, the Steam Workshop legal agreement must be accepted before it becomes visible"
-                : $"Published {result.PublishedFileId}, {rows.Count} published items";
+            if (published.Result.NeedsWorkshopAgreement)
+            {
+                await MessageDialog.ShowAsync(this, MessageKind.Warning, "Published", $"Published \"{published.Title}\" ({published.Result.PublishedFileId}), but the Steam Workshop legal agreement must be accepted before it becomes visible.");
+            }
+            else
+            {
+                await MessageDialog.ShowAsync(this, MessageKind.Info, "Published", $"Published \"{published.Title}\" ({published.Result.PublishedFileId})");
+            }
         }
     }
 
@@ -142,7 +147,7 @@ public partial class MainWindow : Window
 
         if (!await Launcher.LaunchUriAsync(row.Item.Url))
         {
-            Status.Text = $"Could not open {row.Item.Url}";
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "View", $"Could not open {row.Item.Url}");
         }
     }
 
@@ -153,7 +158,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!await new ConfirmDialog("Delete Submission", DeleteConfirmation).ShowDialog<bool>(this))
+        if (!await MessageDialog.AskAsync(this, MessageKind.Danger, "Delete Submission", DeleteConfirmation))
         {
             return;
         }
@@ -169,7 +174,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
-            Status.Text = exception.Message;
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Delete Submission", exception.Message);
         }
         finally
         {
@@ -189,7 +194,7 @@ public partial class MainWindow : Window
             return row;
         }
 
-        Status.Text = $"Select a map to {action}.";
+        _ = MessageDialog.ShowAsync(this, MessageKind.Warning, "No Map Selected", $"Select a map to {action}.");
         return null;
     }
 
@@ -218,7 +223,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
-            Status.Text = exception.Message;
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Workshop", exception.Message);
         }
         finally
         {

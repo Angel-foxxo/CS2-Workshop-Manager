@@ -50,7 +50,7 @@ public partial class SubmissionView : UserControl
     /// <summary>The image picked for the preview, null keeps whatever the item has.</summary>
     private string? thumbnailPath;
 
-    private TaskCompletionSource<WorkshopPublishResult?>? finished;
+    private TaskCompletionSource<PublishedSubmission?>? finished;
 
     public SubmissionView()
     {
@@ -75,7 +75,7 @@ public partial class SubmissionView : UserControl
     /// Fills the form for a new submission or for <paramref name="row"/>'s item and waits until it is submitted or cancelled.
     /// </summary>
     /// <returns>What was published, or null when the form was cancelled.</returns>
-    public Task<WorkshopPublishResult?> ShowAsync(SubmissionMode mode, WorkshopManager manager, WorkshopItemRow? row)
+    public Task<PublishedSubmission?> ShowAsync(SubmissionMode mode, WorkshopManager manager, WorkshopItemRow? row)
     {
         this.mode = mode;
         this.manager = manager;
@@ -122,13 +122,13 @@ public partial class SubmissionView : UserControl
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                Status.Text = exception.Message;
+                _ = MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Addon Folders", exception.Message);
             }
         }
 
         TitleBox.Focus();
 
-        finished = new TaskCompletionSource<WorkshopPublishResult?>();
+        finished = new TaskCompletionSource<PublishedSubmission?>();
         return finished.Task;
     }
 
@@ -170,9 +170,13 @@ public partial class SubmissionView : UserControl
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Status.Text = exception.Message;
+            Status.Text = string.Empty;
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Addon Folder", exception.Message);
         }
     }
+
+    /// <summary>The window the form sits in, which owns its dialogs.</summary>
+    private Window OwnerWindow => (Window)TopLevel.GetTopLevel(this)!;
 
     private void SetPreview(object? source)
     {
@@ -236,12 +240,12 @@ public partial class SubmissionView : UserControl
             {
                 // the upload can still convert formats the window can not show, whatever the decoder throws
                 SetPreview(null);
-                Status.Text = "The image will be uploaded, but can not be shown here.";
+                await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Info, "Preview Image", "The image will be uploaded, but can not be shown here.");
             }
         }
         catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
         {
-            Status.Text = exception.Message;
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Preview Image", exception.Message);
         }
     }
 
@@ -362,7 +366,7 @@ public partial class SubmissionView : UserControl
 
         if (Validate(title, description, changeNote, options) is string problem)
         {
-            Status.Text = problem;
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Submission", problem);
             return;
         }
 
@@ -386,7 +390,8 @@ public partial class SubmissionView : UserControl
             // packing happens on the calling thread, which would freeze the window
             var result = await Task.Run(() => manager!.PublishAsync(options, progress));
 
-            Finish(result);
+            // an info edit that left the title alone still knows it from the item
+            Finish(new PublishedSubmission(result, options.Title ?? item!.Title));
         }
         catch (SourceFolderConflictException exception)
         {
@@ -394,14 +399,15 @@ public partial class SubmissionView : UserControl
 
             var question = $"This item was last published from addon \"{exception.PreviousAddonName}\".\n\nUpload it from \"{exception.AddonName}\" anyway?";
 
-            if (await new ConfirmDialog("Different Addon Folder", question).ShowDialog<bool>((Window)TopLevel.GetTopLevel(this)!))
+            if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Different Addon Folder", question))
             {
                 await PublishAsync(options with { AllowSourceFolderChange = true });
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException or ArgumentException)
         {
-            Status.Text = exception.Message;
+            Status.Text = string.Empty;
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Submission Failed", exception.Message);
         }
         finally
         {
@@ -421,13 +427,16 @@ public partial class SubmissionView : UserControl
         Finish(null);
     }
 
-    private void Finish(WorkshopPublishResult? result)
+    private void Finish(PublishedSubmission? published)
     {
         var task = finished;
 
         finished = null;
-        task?.TrySetResult(result);
+        task?.TrySetResult(published);
     }
+
+    /// <summary>What the form published and the title it gave it.</summary>
+    public sealed record PublishedSubmission(WorkshopPublishResult Result, string Title);
 
     /// <summary>A visibility and the label the dropdown shows for it.</summary>
     private sealed record VisibilityChoice(WorkshopVisibility Value, string Label)
