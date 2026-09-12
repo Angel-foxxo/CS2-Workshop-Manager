@@ -75,8 +75,8 @@ public partial class SubmissionView : UserControl
 
         Heading.Text = mode switch
         {
-            SubmissionMode.ReUpload => $"Re-Upload of Published ID: {item!.PublishedFileId}",
-            SubmissionMode.Edit => $"Edit Info of Published ID: {item!.PublishedFileId}",
+            SubmissionMode.ReUpload => $"Re-Upload of \"{item!.Title}\" ({item.PublishedFileId})",
+            SubmissionMode.Edit => $"Edit Info of \"{item!.Title}\" ({item.PublishedFileId})",
             _ => "New Submission",
         };
 
@@ -174,6 +174,7 @@ public partial class SubmissionView : UserControl
     {
         thumbnailPath = null;
         SetPreview(null);
+        Status.Text = string.Empty;
     }
 
     private async void OnBrowse(object? sender, RoutedEventArgs e)
