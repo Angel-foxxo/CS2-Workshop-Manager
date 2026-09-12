@@ -4,8 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
-    <Description>Command line Counter-Strike 2 workshop uploader</Description>
-    <AssemblyName>CS2WorkshopUploader-CLI</AssemblyName>
+    <Description>Command line Counter-Strike 2 workshop manager</Description>
+    <AssemblyName>CS2WorkshopManager-CLI</AssemblyName>
     <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
     <NoWarn>$(NoWarn);CA1849;CA2007</NoWarn>
@@ -17,6 +17,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CS2WorkshopUploader\CS2WorkshopUploader.csproj" />
+    <ProjectReference Include="..\CS2WorkshopManager\CS2WorkshopManager.csproj" />
   </ItemGroup>
 </Project>

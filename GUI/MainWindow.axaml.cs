@@ -8,7 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Labs.Gif;
 using Avalonia.Media.Imaging;
-using CS2WorkshopUploader;
+using CS2WorkshopManager;
 
 namespace GUI;
 
@@ -62,7 +62,7 @@ public partial class MainWindow : Window
 
         try
         {
-            await foreach (var item in WorkshopUploader.GetPublishedItemsAsync())
+            await foreach (var item in WorkshopManager.GetPublishedItemsAsync())
             {
                 var row = new WorkshopItemRow(item);
 

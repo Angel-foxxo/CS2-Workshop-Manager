@@ -4,7 +4,7 @@ using System.Linq;
 using ValveKeyValue;
 using ValvePak;
 
-namespace CS2WorkshopUploader;
+namespace CS2WorkshopManager;
 
 /// <summary>
 /// Handles packing an addon the same way the CS2 workshop manager does, creating chunked vpks and publish_data.txt

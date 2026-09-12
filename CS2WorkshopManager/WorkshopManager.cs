@@ -5,7 +5,7 @@ using StbImageWriteSharp;
 using Steamworks;
 using ValveResourceFormat.IO;
 
-namespace CS2WorkshopUploader;
+namespace CS2WorkshopManager;
 
 /// <summary>
 /// Values of <see cref="ERemoteStoragePublishedFileVisibility"/> because this enum sucks by default and I'm not using these long ass names in a CLI.
@@ -35,8 +35,8 @@ public sealed record AddonPublishOptions
     /// <summary> Visibility of the Workshop item, see <see cref="WorkshopVisibility"/>. </summary>
     public WorkshopVisibility Visibility { get; init; } = WorkshopVisibility.Private;
 
-    /// <summary> The user facing list of submission tags that will show up on the Workshop, see <see cref="WorkshopUploader.DefaultTags"/> for default tags. />. </summary>
-    public IReadOnlyList<string> Tags { get; init; } = WorkshopUploader.DefaultTags;
+    /// <summary> The user facing list of submission tags that will show up on the Workshop, see <see cref="WorkshopManager.DefaultTags"/> for default tags. />. </summary>
+    public IReadOnlyList<string> Tags { get; init; } = WorkshopManager.DefaultTags;
 
     /// <summary> Disk path for the user facing thumbnail image that will show up on the Workshop. />. </summary>
     public string? ThumbnailImagePath { get; init; }
@@ -92,7 +92,7 @@ public sealed class SourceFolderConflictException : InvalidOperationException
 /// <summary>
 /// Packs a compiled Counter-Strike 2 addon and publishes it to the Steam Workshop.
 /// </summary>
-public sealed class WorkshopUploader
+public sealed class WorkshopManager
 {
     /// <summary>CS2 appid.</summary>
     public const uint AppId = 730;
@@ -117,17 +117,17 @@ public sealed class WorkshopUploader
 
     public string GameInfoPath => Path.Combine(GamePath, "game", "csgo", "gameinfo.gi");
 
-    public WorkshopUploader(string gamePath)
+    public WorkshopManager(string gamePath)
     {
         GamePath = gamePath;
     }
 
-    public static WorkshopUploader FromSteamInstall()
+    public static WorkshopManager FromSteamInstall()
     {
         var game = GameFolderLocator.FindSteamGameByAppId((int)AppId)
             ?? throw new DirectoryNotFoundException("Counter-Strike 2 is not installed in any Steam library.");
 
-        return new WorkshopUploader(game.GamePath);
+        return new WorkshopManager(game.GamePath);
     }
 
     /// <summary>

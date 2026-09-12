@@ -7,7 +7,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://CS2WorkshopUploader-GUI/RadGenTheme.axaml" />
+                <ResourceInclude Source="avares://CS2WorkshopManager-GUI/RadGenTheme.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

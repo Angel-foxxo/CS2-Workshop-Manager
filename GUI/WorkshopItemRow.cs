@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Avalonia.Labs.Gif;
 using Avalonia.Media.Imaging;
-using CS2WorkshopUploader;
+using CS2WorkshopManager;
 
 namespace GUI;
 

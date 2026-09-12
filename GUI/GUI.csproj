@@ -5,7 +5,7 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>WinExe</OutputType>
     <Description>Counter-Strike 2 Workshop manager</Description>
-    <AssemblyName>CS2WorkshopUploader-GUI</AssemblyName>
+    <AssemblyName>CS2WorkshopManager-GUI</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>assets\icon.ico</ApplicationIcon>
     <!-- one self contained exe with the native libraries unpacked on first run, like Source2Viewer -->
@@ -31,7 +31,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CS2WorkshopUploader\CS2WorkshopUploader.csproj" />
+    <ProjectReference Include="..\CS2WorkshopManager\CS2WorkshopManager.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- the window icon, the exe icon above is only used by Windows -->

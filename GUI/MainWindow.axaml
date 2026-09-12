@@ -6,8 +6,8 @@
         xmlns:gif="using:Avalonia.Labs.Gif"
         mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
         x:Class="GUI.MainWindow"
-        Title="CS2 Workshop Uploader"
-        Icon="avares://CS2WorkshopUploader-GUI/assets/icon.ico"
+        Title="CS2 Workshop Manager"
+        Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen">
     <Window.Styles>
@@ -51,37 +51,37 @@
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <Button Classes="tool">
                     <StackPanel>
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/new.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/new.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="New" />
                     </StackPanel>
                 </Button>
                 <Button Classes="tool">
                     <StackPanel>
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/reupload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/reupload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="Re-Upload" />
                     </StackPanel>
                 </Button>
                 <Button Classes="tool">
                     <StackPanel>
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/edit.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/edit.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="Edit" />
                     </StackPanel>
                 </Button>
                 <Button Classes="tool">
                     <StackPanel>
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/view.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/view.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="View" />
                     </StackPanel>
                 </Button>
                 <Button Classes="tool">
                     <StackPanel Margin="2">
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/delete.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/delete.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="Delete" />
                     </StackPanel>
                 </Button>
                 <Button Classes="tool">
                     <StackPanel>
-                        <Image Source="avares://CS2WorkshopUploader-GUI/assets/buttons/reload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/reload.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
                         <TextBlock Text="Refresh" />
                     </StackPanel>
                 </Button>

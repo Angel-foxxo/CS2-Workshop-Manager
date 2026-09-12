@@ -5,7 +5,7 @@
     <RollForward>LatestMajor</RollForward>
     <Description>Packs a compiled addon from "game/csgo_addons" and publishes it to Steam.</Description>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
-    <PackageTags>counter-strike2 cs2 steam workshop valve uploader manager</PackageTags>
+    <PackageTags>counter-strike2 cs2 steam workshop valve manager manager</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="StbImageSharp" Version="2.30.16" />

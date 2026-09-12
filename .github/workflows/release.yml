@@ -95,16 +95,16 @@ jobs:
     - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Build
-      run: dotnet build --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopUploader.slnx
+      run: dotnet build --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopManager.slnx
 
     - name: Pack nupkg
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet pack --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopUploader/CS2WorkshopUploader.csproj
+      run: dotnet pack --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopManager/CS2WorkshopManager.csproj
 
-    - name: Publish CS2WorkshopUploader-CLI
+    - name: Publish CS2WorkshopManager-CLI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} CLI/CLI.csproj
 
-    - name: Publish CS2WorkshopUploader-GUI
+    - name: Publish CS2WorkshopManager-GUI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} GUI/GUI.csproj
 
     - name: Upload nupkg
@@ -112,18 +112,18 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       with:
         name: nupkg
-        path: 'CS2WorkshopUploader/bin/Release/*.nupkg'
+        path: 'CS2WorkshopManager/bin/Release/*.nupkg'
 
-    - name: Upload CS2WorkshopUploader-CLI
+    - name: Upload CS2WorkshopManager-CLI
       uses: actions/upload-artifact@v7
       with:
-        name: CS2WorkshopUploader-CLI-${{ matrix.platform }}
+        name: CS2WorkshopManager-CLI-${{ matrix.platform }}
         path: CLI/bin/Release/${{ matrix.runtime }}/publish
 
-    - name: Upload CS2WorkshopUploader-GUI
+    - name: Upload CS2WorkshopManager-GUI
       uses: actions/upload-artifact@v7
       with:
-        name: CS2WorkshopUploader-GUI-${{ matrix.platform }}
+        name: CS2WorkshopManager-GUI-${{ matrix.platform }}
         path: GUI/bin/Release/${{ matrix.runtime }}/publish
 
   publish:
@@ -146,13 +146,13 @@ jobs:
        set -eux
        mkdir release
        for app in CLI GUI; do
-         chmod +x artifacts/CS2WorkshopUploader-${app}-linux-x64/CS2WorkshopUploader-${app}
-         chmod +x artifacts/CS2WorkshopUploader-${app}-macos-arm64/CS2WorkshopUploader-${app}
+         chmod +x artifacts/CS2WorkshopManager-${app}-linux-x64/CS2WorkshopManager-${app}
+         chmod +x artifacts/CS2WorkshopManager-${app}-macos-arm64/CS2WorkshopManager-${app}
          for platform in windows-x64 linux-x64 macos-arm64; do
-           zip -9j release/CS2WorkshopUploader-${app}-${platform}.zip artifacts/CS2WorkshopUploader-${app}-${platform}/*
+           zip -9j release/CS2WorkshopManager-${app}-${platform}.zip artifacts/CS2WorkshopManager-${app}-${platform}/*
          done
        done
-       mv artifacts/nupkg/CS2WorkshopUploader.*.nupkg release/CS2WorkshopUploader.nupkg
+       mv artifacts/nupkg/CS2WorkshopManager.*.nupkg release/CS2WorkshopManager.nupkg
 
     - name: Display structure of archived files
       run: ls -Rl
@@ -177,4 +177,4 @@ jobs:
         user: ${{ secrets.NUGET_USER }}
 
     - name: Publish to NuGet Gallery
-      run: dotnet nuget push release/CS2WorkshopUploader.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
+      run: dotnet nuget push release/CS2WorkshopManager.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"

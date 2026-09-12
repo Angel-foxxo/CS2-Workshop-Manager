@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using CS2WorkshopUploader;
+using CS2WorkshopManager;
 
 namespace GUI;
 
@@ -17,7 +17,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-            desktop.Exit += (_, _) => WorkshopUploader.ShutdownSteam();
+            desktop.Exit += (_, _) => WorkshopManager.ShutdownSteam();
         }
 
         base.OnFrameworkInitializationCompleted();

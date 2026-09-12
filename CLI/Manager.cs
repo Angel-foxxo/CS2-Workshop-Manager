@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using ConsoleAppFramework;
-using CS2WorkshopUploader;
+using CS2WorkshopManager;
 
 namespace CLI;
 
-public static class Uploader
+public static class Manager
 {
     public static async Task Main(string[] args)
     {
@@ -71,7 +71,7 @@ public static class Uploader
 
         var itemTags = tags_dangerous != null
             ? SplitTags(tags_dangerous)
-            : [.. WorkshopUploader.DefaultTags, .. SplitTags(tags)];
+            : [.. WorkshopManager.DefaultTags, .. SplitTags(tags)];
 
         itemTags = [.. itemTags.Distinct(StringComparer.OrdinalIgnoreCase)];
 
@@ -124,7 +124,7 @@ public static class Uploader
 
             try
             {
-                WorkshopUploader.ValidateThumbnailImage(thumbnail);
+                WorkshopManager.ValidateThumbnailImage(thumbnail);
             }
             catch (InvalidDataException exception)
             {
@@ -139,7 +139,7 @@ public static class Uploader
             return 1;
         }
 
-        WorkshopUploader uploader;
+        WorkshopManager manager;
 
         if (game != null)
         {
@@ -149,13 +149,13 @@ public static class Uploader
                 return 1;
             }
 
-            uploader = new WorkshopUploader(Path.GetFullPath(game));
+            manager = new WorkshopManager(Path.GetFullPath(game));
         }
         else
         {
             try
             {
-                uploader = WorkshopUploader.FromSteamInstall();
+                manager = WorkshopManager.FromSteamInstall();
             }
             catch (DirectoryNotFoundException exception)
             {
@@ -164,7 +164,7 @@ public static class Uploader
             }
         }
 
-        var addonPath = Path.Combine(uploader.AddonsRoot, addon);
+        var addonPath = Path.Combine(manager.AddonsRoot, addon);
 
         if (!Directory.Exists(addonPath))
         {
@@ -172,12 +172,12 @@ public static class Uploader
             return 1;
         }
 
-        Console.WriteLine($"Game: {uploader.GamePath}");
+        Console.WriteLine($"Game: {manager.GamePath}");
         Console.WriteLine($"Addon: {addonPath}");
 
         if (stage_only)
         {
-            var stagingPath = AddonPackager.Stage(uploader.AddonsRoot, addon, uploader.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow);
+            var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow);
 
             Console.WriteLine($"Staged: {stagingPath}");
 
@@ -191,12 +191,12 @@ public static class Uploader
 
         try
         {
-            if (force && id != null && WorkshopUploader.GetConflictingSourceFolder(addon, id.Value) is string previousAddon)
+            if (force && id != null && WorkshopManager.GetConflictingSourceFolder(addon, id.Value) is string previousAddon)
             {
                 Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
             }
 
-            var result = await uploader.PublishAsync(new AddonPublishOptions
+            var result = await manager.PublishAsync(new AddonPublishOptions
             {
                 AddonName = addon,
                 PublishedFileId = id,
@@ -230,7 +230,7 @@ public static class Uploader
         }
         finally
         {
-            WorkshopUploader.ShutdownSteam();
+            WorkshopManager.ShutdownSteam();
         }
 
         return 0;
@@ -245,7 +245,7 @@ public static class Uploader
     {
         var info = new StringBuilder();
         info.Append("Version: ");
-        info.AppendLine(typeof(Uploader).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
+        info.AppendLine(typeof(Manager).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
         info.Append("OS: ");
         info.Append(RuntimeInformation.OSDescription);
         info.Append(" (");

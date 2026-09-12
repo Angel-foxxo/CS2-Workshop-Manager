@@ -6,7 +6,7 @@
     <Description>Talks to the running Steam client directly in order to avoid pulling in steam_client dll as a dependency.</Description>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
-    <!-- ships inside the CS2WorkshopUploader package, so it is not packed on its own -->
+    <!-- ships inside the CS2WorkshopManager package, so it is not packed on its own -->
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 </Project>

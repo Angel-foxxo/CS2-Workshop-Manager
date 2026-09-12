@@ -47,16 +47,16 @@ jobs:
     - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Build
-      run: dotnet build --configuration Release CS2WorkshopUploader.slnx
+      run: dotnet build --configuration Release CS2WorkshopManager.slnx
 
     - name: Pack nupkg
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet pack --configuration Release CS2WorkshopUploader/CS2WorkshopUploader.csproj
+      run: dotnet pack --configuration Release CS2WorkshopManager/CS2WorkshopManager.csproj
 
-    - name: Publish CS2WorkshopUploader-CLI
+    - name: Publish CS2WorkshopManager-CLI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} CLI/CLI.csproj
 
-    - name: Publish CS2WorkshopUploader-GUI
+    - name: Publish CS2WorkshopManager-GUI
       run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} GUI/GUI.csproj
 
     - name: Upload nupkg
@@ -64,16 +64,16 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       with:
         name: nupkg
-        path: 'CS2WorkshopUploader/bin/Release/*.nupkg'
+        path: 'CS2WorkshopManager/bin/Release/*.nupkg'
 
-    - name: Upload CS2WorkshopUploader-CLI
+    - name: Upload CS2WorkshopManager-CLI
       uses: actions/upload-artifact@v7
       with:
-        name: CS2WorkshopUploader-CLI-${{ matrix.platform }}
+        name: CS2WorkshopManager-CLI-${{ matrix.platform }}
         path: CLI/bin/Release/${{ matrix.runtime }}/publish
 
-    - name: Upload CS2WorkshopUploader-GUI
+    - name: Upload CS2WorkshopManager-GUI
       uses: actions/upload-artifact@v7
       with:
-        name: CS2WorkshopUploader-GUI-${{ matrix.platform }}
+        name: CS2WorkshopManager-GUI-${{ matrix.platform }}
         path: GUI/bin/Release/${{ matrix.runtime }}/publish
