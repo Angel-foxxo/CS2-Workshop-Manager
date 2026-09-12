@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using StbImageSharp;
 using StbImageWriteSharp;
@@ -20,28 +22,28 @@ public enum WorkshopVisibility
 
 public sealed record AddonPublishOptions
 {
-    /// <summary> Name of the addon folder under game/csgo_addons to upload. </summary>
-    public required string AddonName { get; init; }
+    /// <summary> Name of the addon folder under game/csgo_addons to upload, or null to only change the info of the submission in <see cref="PublishedFileId"/>. </summary>
+    public string? AddonName { get; init; }
 
     /// <summary> Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission. </summary>
     public ulong? PublishedFileId { get; init; }
 
-    /// <summary> Title of the workshop item. </summary>
-    public required string Title { get; init; }
+    /// <summary> Title of the workshop item, needed for an upload. When only editing info, null leaves the published title alone. </summary>
+    public string? Title { get; init; }
 
-    /// <summary> Description of the workshop item. </summary>
-    public string Description { get; init; } = string.Empty;
+    /// <summary> Description of the workshop item, empty for an upload when null. When only editing info, null leaves the published description alone. </summary>
+    public string? Description { get; init; }
 
-    /// <summary> Visibility of the Workshop item, see <see cref="WorkshopVisibility"/>. </summary>
-    public WorkshopVisibility Visibility { get; init; } = WorkshopVisibility.Private;
+    /// <summary> Visibility of the Workshop item, see <see cref="WorkshopVisibility"/>, private for an upload when null. When only editing info, null leaves the published visibility alone. </summary>
+    public WorkshopVisibility? Visibility { get; init; }
 
-    /// <summary> The user facing list of submission tags that will show up on the Workshop, see <see cref="WorkshopManager.DefaultTags"/> for default tags. />. </summary>
-    public IReadOnlyList<string> Tags { get; init; } = WorkshopManager.DefaultTags;
+    /// <summary> The user facing list of submission tags that will show up on the Workshop, <see cref="WorkshopManager.DefaultTags"/> for an upload when null. When only editing info, null leaves the published tags alone. </summary>
+    public IReadOnlyList<string>? Tags { get; init; }
 
-    /// <summary> Disk path for the user facing thumbnail image that will show up on the Workshop. />. </summary>
+    /// <summary> Disk path for the user facing thumbnail image that will show up on the Workshop. Null leaves the published preview alone. </summary>
     public string? ThumbnailImagePath { get; init; }
 
-    /// <summary> Change note that shows up in the "Change Notes" tab. />. </summary>
+    /// <summary> Change note that shows up in the "Change Notes" tab. Null gives the workshop manager's "Created {Title}." or "Edited {Title}." for an upload and no note when only editing info. </summary>
     public string? ChangeNote { get; init; }
 
     /// <summary> Update the item even when the workshop content was published from a different addon folder, otherwise <see cref="SourceFolderConflictException"/> is thrown. </summary>
@@ -101,6 +103,9 @@ public sealed class WorkshopManager
 
     public static readonly string[] DefaultTags = ["CS2", "Map"];
 
+    /// <summary>The game mode tags the workshop manager offers, added after <see cref="DefaultTags"/>.</summary>
+    public static readonly string[] GameModeTags = ["Classic", "Deathmatch", "Armsrace", "Wingman", "Custom"];
+
     private static SteamClient? steam;
 
     private static SteamClient Steam
@@ -116,6 +121,16 @@ public sealed class WorkshopManager
     public string AddonsRoot => Path.Combine(GamePath, "game", "csgo_addons");
 
     public string GameInfoPath => Path.Combine(GamePath, "game", "csgo", "gameinfo.gi");
+
+    /// <summary>
+    /// The addon folders under game/csgo_addons, without the folders the workshop manager keeps there itself.
+    /// </summary>
+    public IEnumerable<string> GetAddonNames()
+    {
+        return Directory.EnumerateDirectories(AddonsRoot)
+            .Select(path => Path.GetFileName(path))
+            .Where(name => !name.Equals("vpks", StringComparison.OrdinalIgnoreCase) && !name.Equals("workshop_items", StringComparison.OrdinalIgnoreCase));
+    }
 
     public WorkshopManager(string gamePath)
     {
@@ -145,21 +160,52 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// The addon the item was last published from./>.
+    /// The addon the running Counter-Strike 2 workshop tools were started with, read from the game's command line, or null when the tools are not running.
+    /// </summary>
+    public static string? GetRunningToolsAddon()
+    {
+        foreach (var process in Process.GetProcessesByName("cs2"))
+        {
+            using (process)
+            {
+                var arguments = ProcessCommandLine.Read(process)?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                if (arguments == null || !arguments.Contains("-tools", StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var addon = Array.FindIndex(arguments, argument => argument.Equals("-addon", StringComparison.OrdinalIgnoreCase));
+
+                if (addon >= 0 && addon + 1 < arguments.Length)
+                {
+                    return arguments[addon + 1].Trim('"');
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The addon folder the item's installed workshop content was published from, or null when it is not installed or was not published by a workshop manager.
+    /// </summary>
+    public static string? GetPublishedSourceFolder(ulong publishedFileId)
+    {
+        var installDirectory = Steam.UGC.GetItemInstallFolder(publishedFileId);
+
+        return installDirectory == null ? null : AddonPackager.ReadPublishedSourceFolder(installDirectory);
+    }
+
+    /// <summary>
+    /// The addon the item was last published from.
     /// </summary>
     /// <returns>
     /// Last addon path the item was published from if trying to publish from a different addon, null otherwise.
     /// </returns>
     public static string? GetConflictingSourceFolder(string addonName, ulong publishedFileId)
     {
-        var installDirectory = Steam.UGC.GetItemInstallFolder(publishedFileId);
-
-        if (installDirectory == null)
-        {
-            return null;
-        }
-
-        var previous = AddonPackager.ReadPublishedSourceFolder(installDirectory);
+        var previous = GetPublishedSourceFolder(publishedFileId);
 
         return previous != null && !previous.Equals(addonName, StringComparison.OrdinalIgnoreCase) ? previous : null;
     }
@@ -234,7 +280,20 @@ public sealed class WorkshopManager
     {
         InitializeSteam();
 
-        if (options.PublishedFileId is ulong existingFileId && !options.AllowSourceFolderChange)
+        if (options.AddonName == null && options.PublishedFileId == null)
+        {
+            throw new ArgumentException("A new submission needs an addon folder to upload.", nameof(options));
+        }
+
+        // an upload sets everything like the workshop manager does, an info edit only what was given
+        var editsInfoOnly = options.AddonName == null;
+
+        if (!editsInfoOnly && string.IsNullOrWhiteSpace(options.Title))
+        {
+            throw new ArgumentException("An upload needs a title.", nameof(options));
+        }
+
+        if (options.AddonName != null && options.PublishedFileId is ulong existingFileId && !options.AllowSourceFolderChange)
         {
             var previousAddonName = GetConflictingSourceFolder(options.AddonName, existingFileId);
 
@@ -247,24 +306,44 @@ public sealed class WorkshopManager
         var publishedFileId = options.PublishedFileId ?? await CreateItemAsync().ConfigureAwait(false);
 
         var publishTime = DateTimeOffset.UtcNow;
-        var contentPath = AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title, publishTime);
+
+        // only the info changes when there is no addon to upload
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime);
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);
 
-        ugc.SetItemTitle(handle, options.Title);
-        ugc.SetItemDescription(handle, options.Description);
-        ugc.SetItemVisibility(handle, (ERemoteStoragePublishedFileVisibility)options.Visibility);
+        if (options.Title != null)
+        {
+            ugc.SetItemTitle(handle, options.Title);
+        }
+
+        if ((options.Description ?? (editsInfoOnly ? null : string.Empty)) is string description)
+        {
+            ugc.SetItemDescription(handle, description);
+        }
+
+        if ((options.Visibility ?? (editsInfoOnly ? null : WorkshopVisibility.Private)) is WorkshopVisibility visibility)
+        {
+            ugc.SetItemVisibility(handle, (ERemoteStoragePublishedFileVisibility)visibility);
+        }
 
         if (options.ThumbnailImagePath != null)
         {
             ugc.SetItemPreview(handle, WriteThumbnail(options.ThumbnailImagePath, publishedFileId, publishTime));
         }
 
-        ugc.SetItemContent(handle, contentPath);
-        ugc.SetItemTags(handle, options.Tags);
+        if (contentPath != null)
+        {
+            ugc.SetItemContent(handle, contentPath);
+        }
 
-        var changeNote = options.ChangeNote ?? (options.PublishedFileId == null ? $"Created {options.Title}." : $"Edited {options.Title}.");
+        if ((options.Tags ?? (editsInfoOnly ? null : DefaultTags)) is { } tags)
+        {
+            ugc.SetItemTags(handle, tags);
+        }
+
+        var changeNote = options.ChangeNote ?? (editsInfoOnly ? string.Empty : options.PublishedFileId == null ? $"Created {options.Title}." : $"Edited {options.Title}.");
 
         var result = await Steam.WaitForCallResultAsync<SubmitItemUpdateResult>(ugc.SubmitItemUpdate(handle, changeNote), () =>
         {

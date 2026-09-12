@@ -1,9 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <ProjectBaseVersion>1.0</ProjectBaseVersion>
     <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <Description>Packs a compiled addon from "game/csgo_addons" and publishes it to Steam.</Description>
+    <!-- the source generated P/Invokes reading another process's command line -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <PackageTags>counter-strike2 cs2 steam workshop valve manager manager</PackageTags>
   </PropertyGroup>

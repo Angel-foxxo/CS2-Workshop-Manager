@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:GUI"
+             mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
+             x:Class="GUI.SubmissionView">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{DynamicResource RadGenContrastBrush}" />
+            <Setter Property="Margin" Value="0,0,12,12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- labels of tall boxes sit at their top like the workshop manager's -->
+        <Style Selector="TextBlock.label.top">
+            <Setter Property="Margin" Value="0,6,12,0" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="8,6">
+        <!-- what is being published, with the way back to the list where the toolbar was -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button Name="BackButton" Classes="tool" Click="OnCancel">
+                <StackPanel>
+                    <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/back.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                    <TextBlock Text="Back" />
+                </StackPanel>
+            </Button>
+            <TextBlock Name="Heading" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource RadGenContrastBrush}" />
+        </DockPanel>
+
+        <!-- progress and the outcome, with the workshop manager's buttons -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                <Button Name="CancelButton" Content="Cancel" MinWidth="80" Click="OnCancel" />
+                <Button Name="SubmitButton" Content="Submit" MinWidth="80" Click="OnSubmit" />
+            </StackPanel>
+            <ProgressBar Name="UploadProgress" DockPanel.Dock="Right" Width="240" Margin="0,0,16,0" Minimum="0" Maximum="1" IsVisible="False" VerticalAlignment="Center" />
+            <TextBlock Name="Status" Margin="4,0" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastBrush}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+
+        <Grid Name="Form" ColumnDefinitions="*,16,*">
+            <!-- the preview image, as big as the window allows, picked by dropping or browsing -->
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                    <Button Content="Browse..." MinWidth="80" Click="OnBrowse" />
+                    <Button Content="Clear" MinWidth="80" Click="OnClearPreview" />
+                </StackPanel>
+                <Border Name="PreviewDrop" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" DragDrop.AllowDrop="True">
+                    <Panel Margin="12">
+                        <TextBlock Name="PreviewHint" Text="Drag an image here or click Browse" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
+                        <local:PreviewImage Name="Preview" />
+                    </Panel>
+                </Border>
+            </DockPanel>
+
+            <!-- the submission's info, the description takes whatever height is left -->
+            <Border Grid.Column="2" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="16">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+                    <TextBlock Name="ChangeNoteLabel" Classes="label top" Text="Change Log:" />
+                    <TextBox Name="ChangeNoteBox" Grid.Column="1" Margin="0,0,0,12" Height="90" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Type your update notes for this change here" />
+
+                    <TextBlock Grid.Row="1" Classes="label" Text="Title:" />
+                    <TextBox Name="TitleBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" />
+
+                    <TextBlock Grid.Row="2" Classes="label top" Text="Description:" />
+                    <TextBox Name="DescriptionBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,12" MinHeight="120" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+
+                    <TextBlock Name="AddonLabel" Grid.Row="3" Classes="label top" Text="Addon Folder:" />
+                    <StackPanel Name="AddonPanel" Grid.Row="3" Grid.Column="1" Margin="0,0,0,12" Spacing="8">
+                        <ComboBox Name="AddonBox" HorizontalAlignment="Stretch" SelectionChanged="OnAddonChanged" />
+                        <local:ContentsBar Name="Contents" Height="44" Foreground="{DynamicResource RadGenContrastBrush}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="4" Classes="label" Text="Game Modes:" />
+                    <DropDownButton Name="GameModesButton" Grid.Row="4" Grid.Column="1" Margin="0,0,0,12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Content="None">
+                        <DropDownButton.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedLeft">
+                                <StackPanel Name="GameModesList" Spacing="4" />
+                            </Flyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+
+                    <TextBlock Grid.Row="5" Classes="label" Text="Visibility:" Margin="0,0,12,0" />
+                    <ComboBox Name="VisibilityBox" Grid.Row="5" Grid.Column="1" HorizontalAlignment="Stretch" />
+                </Grid>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

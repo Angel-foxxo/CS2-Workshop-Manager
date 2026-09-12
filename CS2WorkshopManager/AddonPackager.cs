@@ -114,6 +114,28 @@ public static class AddonPackager
     }
 
     /// <summary>
+    /// All the files to pack into the addon.
+    /// </summary>
+    public static List<FileInfo> CollectFiles(string addonPath, string gameInfoPath)
+    {
+        addonPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addonPath));
+
+        var rules = LoadVpkDirectories(gameInfoPath);
+        var files = new List<string>();
+        CollectFiles(addonPath, addonPath, rules, files);
+
+        return [.. files.Select(file => new FileInfo(file))];
+    }
+
+    /// <summary>
+    /// Get the addon contents, using <see cref="CollectFiles(string, string)"/> just like <see cref="Pack"/> but without doing any packing. 
+    /// </summary>
+    public static AddonContents GetContents(string addonPath, string gameInfoPath)
+    {
+        return AddonContents.FromFiles(CollectFiles(addonPath, gameInfoPath));
+    }
+
+    /// <summary>
     /// Writes <paramref name="outputDirectoryFile"/> (ending in "_dir.vpk") and its numbered vok chunks.
     /// </summary>
     /// <returns>The packed files, relative to the addon root.</returns>
@@ -121,9 +143,7 @@ public static class AddonPackager
     {
         addonPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addonPath));
 
-        var rules = LoadVpkDirectories(gameInfoPath);
-        var files = new List<string>();
-        CollectFiles(addonPath, addonPath, rules, files);
+        var files = CollectFiles(addonPath, gameInfoPath);
 
         using var package = new Package();
         package.WriteChunkSize = ChunkSize;
@@ -132,26 +152,26 @@ public static class AddonPackager
 
         foreach (var file in files)
         {
-            var size = new FileInfo(file).Length;
+            var size = file.Length;
 
             if (totalSize >= MaxTotalSize || totalSize + size >= MaxTotalSize)
             {
-                throw new InvalidOperationException($"VPK: Exceeded CS2 Workshop upload limit of 3.0 GB! Error adding '{file}'.");
+                throw new InvalidOperationException($"VPK: Exceeded CS2 Workshop upload limit of 3.0 GB! Error adding '{file.FullName}'.");
             }
 
             if (size >= MaxFileSize)
             {
-                throw new InvalidOperationException($"VPK: Exceeded single VPK 2.0 GB limit! Error adding '{file}'.");
+                throw new InvalidOperationException($"VPK: Exceeded single VPK 2.0 GB limit! Error adding '{file.FullName}'.");
             }
 
-            package.AddFile(GetRelativePath(addonPath, file), File.ReadAllBytes(file), multiChunk: true);
+            package.AddFile(GetRelativePath(addonPath, file.FullName), File.ReadAllBytes(file.FullName), multiChunk: true);
 
             totalSize += size;
         }
 
         package.Write(outputDirectoryFile);
 
-        return [.. files.Select(file => GetRelativePath(addonPath, file))];
+        return [.. files.Select(file => GetRelativePath(addonPath, file.FullName))];
     }
 
     private static List<VpkDirectoryRule> LoadVpkDirectories(string gameInfoPath)

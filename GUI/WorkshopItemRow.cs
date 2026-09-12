@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using Avalonia.Labs.Gif;
-using Avalonia.Media.Imaging;
 using CS2WorkshopManager;
 
 namespace GUI;
@@ -10,8 +8,7 @@ namespace GUI;
 /// </summary>
 public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
 {
-    private Bitmap? thumbnail;
-    private IGifSource? animatedThumbnail;
+    private object? thumbnail;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -29,24 +26,17 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
     public DateTimeOffset DateCreated => Item.TimeCreated.ToLocalTime();
     public double SizeMegabytes => Item.Size / (1024.0 * 1024.0);
 
-    public Bitmap? Thumbnail
+    /// <summary>The preview image file as downloaded, decoded again at full size when the item is opened for editing.</summary>
+    public byte[]? Preview { get; set; }
+
+    /// <summary>The preview decoded for the lists, see <see cref="PreviewImage.Decode"/>.</summary>
+    public object? Thumbnail
     {
         get => thumbnail;
         set
         {
             thumbnail = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Thumbnail)));
-        }
-    }
-
-    /// <summary>The thumbnail when the preview is a gif, shown animated instead of <see cref="Thumbnail"/>.</summary>
-    public IGifSource? AnimatedThumbnail
-    {
-        get => animatedThumbnail;
-        set
-        {
-            animatedThumbnail = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AnimatedThumbnail)));
         }
     }
 }

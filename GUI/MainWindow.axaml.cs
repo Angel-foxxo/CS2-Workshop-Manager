@@ -6,8 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Labs.Gif;
-using Avalonia.Media.Imaging;
 using CS2WorkshopManager;
 
 namespace GUI;
@@ -29,6 +27,9 @@ public partial class MainWindow : Window
     private static readonly SemaphoreSlim ThumbnailDownloads = new(6);
 
     private readonly ObservableCollection<WorkshopItemRow> rows = [];
+
+    /// <summary>The game install, found when the first publish form needs it.</summary>
+    private WorkshopManager? manager;
 
     public MainWindow()
     {
@@ -67,6 +68,69 @@ public partial class MainWindow : Window
     private async void OnRefresh(object? sender, RoutedEventArgs e)
     {
         await LoadItemsAsync();
+    }
+
+    private async void OnNew(object? sender, RoutedEventArgs e)
+    {
+        await OpenSubmissionAsync(SubmissionMode.New, null);
+    }
+
+    private async void OnReUpload(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedRow("re-upload") is { } row)
+        {
+            await OpenSubmissionAsync(SubmissionMode.ReUpload, row);
+        }
+    }
+
+    private async void OnEdit(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedRow("edit") is { } row)
+        {
+            await OpenSubmissionAsync(SubmissionMode.Edit, row);
+        }
+    }
+
+    /// <summary>
+    /// Swaps the item list for the publish form until that is done, then reloads the list when something was published.
+    /// </summary>
+    private async Task OpenSubmissionAsync(SubmissionMode mode, WorkshopItemRow? row)
+    {
+        try
+        {
+            manager ??= WorkshopManager.FromSteamInstall();
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            Status.Text = exception.Message;
+            return;
+        }
+
+        Main.IsVisible = false;
+        Submission.IsVisible = true;
+
+        WorkshopPublishResult? result;
+
+        try
+        {
+            result = await Submission.ShowAsync(mode, manager, row);
+        }
+        finally
+        {
+            Submission.IsVisible = false;
+            Main.IsVisible = true;
+        }
+
+        if (result != null)
+        {
+            // the workshop manager opens the published item's page
+            await Launcher.LaunchUriAsync(result.Url);
+            await LoadItemsAsync();
+
+            Status.Text = result.NeedsWorkshopAgreement
+                ? $"Published {result.PublishedFileId}, the Steam Workshop legal agreement must be accepted before it becomes visible"
+                : $"Published {result.PublishedFileId}, {rows.Count} published items";
+        }
     }
 
     private async void OnView(object? sender, RoutedEventArgs e)
@@ -177,17 +241,8 @@ public partial class MainWindow : Window
         {
             var preview = await Http.GetByteArrayAsync(row.Item.PreviewUrl);
 
-            if (preview.AsSpan().StartsWith("GIF8"u8))
-            {
-                // the gif control decodes and plays the stream itself, so it keeps the stream
-                row.AnimatedThumbnail = GifStreamSource.FromStream(new MemoryStream(preview));
-            }
-            else
-            {
-                using var stream = new MemoryStream(preview);
-
-                row.Thumbnail = Bitmap.DecodeToWidth(stream, ThumbnailSize);
-            }
+            row.Preview = preview;
+            row.Thumbnail = PreviewImage.Decode(preview, ThumbnailSize);
         }
         catch (Exception)
         {
