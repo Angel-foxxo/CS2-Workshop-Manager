@@ -478,9 +478,12 @@ public partial class SubmissionView : UserControl
         UploadProgress.IsVisible = busy;
     }
 
-    private void OnCancel(object? sender, RoutedEventArgs e)
+    private async void OnCancel(object? sender, RoutedEventArgs e)
     {
-        Finish(null);
+        if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Leave Submission", "Leave without submitting?\n\nWhat you entered here will be lost."))
+        {
+            Finish(null);
+        }
     }
 
     private void Finish(PublishedSubmission? published)
