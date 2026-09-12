@@ -36,8 +36,9 @@
                 <Button Name="CancelButton" Content="Cancel" MinWidth="80" Click="OnCancel" />
                 <Button Name="SubmitButton" Content="Submit" MinWidth="80" Click="OnSubmit" />
             </StackPanel>
-            <ProgressBar Name="UploadProgress" DockPanel.Dock="Right" Width="240" Margin="0,0,16,0" Minimum="0" Maximum="1" IsVisible="False" VerticalAlignment="Center" />
-            <TextBlock Name="Status" Margin="4,0" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastBrush}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Name="Status" DockPanel.Dock="Left" Width="320" Margin="4,0" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastBrush}" TextTrimming="CharacterEllipsis" />
+            <!-- the status keeps a fixed width so the bar does not change size as the text does -->
+            <ProgressBar Name="UploadProgress" Margin="16,0" Minimum="0" Maximum="1" IsVisible="False" VerticalAlignment="Center" />
         </DockPanel>
 
         <Grid Name="Form" ColumnDefinitions="*,16,*">
