@@ -98,6 +98,7 @@ public partial class SubmissionView : UserControl
         ChangeNoteBox.Text = string.Empty;
         TitleBox.Text = item?.Title ?? string.Empty;
         DescriptionBox.Text = item?.Description ?? string.Empty;
+        ShowDescription(preview: false);
         VisibilityBox.SelectedItem = Array.Find(VisibilityChoices, choice => choice.Value == (item?.Visibility ?? WorkshopVisibility.Private));
         Status.Text = string.Empty;
 
@@ -130,6 +131,61 @@ public partial class SubmissionView : UserControl
 
         finished = new TaskCompletionSource<PublishedSubmission?>();
         return finished.Task;
+    }
+
+    private void OnDescriptionViewToggle(object? sender, RoutedEventArgs e)
+    {
+        ShowDescription(sender == PreviewToggle);
+    }
+
+    /// <summary>Shows the description as typed, or laid out the way the workshop page would show it.</summary>
+    private void ShowDescription(bool preview)
+    {
+        EditToggle.IsChecked = !preview;
+        PreviewToggle.IsChecked = preview;
+        FormatButtons.IsEnabled = !preview;
+        DescriptionBox.IsVisible = !preview;
+        DescriptionPreview.IsVisible = preview;
+
+        if (preview)
+        {
+            DescriptionRendered.Text = DescriptionBox.Text;
+        }
+    }
+
+    /// <summary>
+    /// Wraps the selected description text in the button's Steam formatting tag, or opens a tag at the caret to type into.
+    /// </summary>
+    private void OnFormat(object? sender, RoutedEventArgs e)
+    {
+        var tag = (string)((Button)sender!).Tag!;
+        var selected = DescriptionBox.SelectedText;
+        var from = Math.Min(DescriptionBox.SelectionStart, DescriptionBox.SelectionEnd);
+
+        var (open, close) = tag switch
+        {
+            "url" => ("[url=https://]", "[/url]"),
+            "list" => ("[list]\n[*]", "\n[/list]"),
+            _ => ($"[{tag}]", $"[/{tag}]"),
+        };
+
+        DescriptionBox.SelectedText = open + selected + close;
+
+        if (tag == "url")
+        {
+            // the address placeholder is selected so it is typed over
+            DescriptionBox.SelectionStart = from + "[url=".Length;
+            DescriptionBox.SelectionEnd = from + "[url=https://".Length;
+        }
+        else
+        {
+            // the caret lands inside empty tags, and after tags wrapped around a selection
+            var caret = selected.Length == 0 ? from + open.Length : from + open.Length + selected.Length + close.Length;
+
+            DescriptionBox.SelectionStart = DescriptionBox.SelectionEnd = caret;
+        }
+
+        DescriptionBox.Focus();
     }
 
     private void OnGameModeChanged(object? sender, RoutedEventArgs e)

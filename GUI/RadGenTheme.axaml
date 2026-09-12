@@ -21,6 +21,8 @@
             <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent -->
             <Color x:Key="RadGenPopupColor">#E4EBF1</Color>
             <Color x:Key="RadGenOutlineColor">#8FA3B6</Color>
+            <!-- headings in rendered descriptions, the blue Steam gives them -->
+            <Color x:Key="RadGenHeadingColor">#1B6AA8</Color>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <Color x:Key="RadGenAppColor">#1A1B1E</Color>
@@ -41,6 +43,8 @@
             <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent -->
             <Color x:Key="RadGenPopupColor">#202735</Color>
             <Color x:Key="RadGenOutlineColor">#3E4B66</Color>
+            <!-- headings in rendered descriptions, the blue Steam gives them -->
+            <Color x:Key="RadGenHeadingColor">#67C1F5</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -59,6 +63,7 @@
     <SolidColorBrush x:Key="RadGenFieldBrush" Color="{DynamicResource RadGenShadeColor}" Opacity="0.35" />
     <SolidColorBrush x:Key="RadGenPopupBrush" Color="{DynamicResource RadGenPopupColor}" />
     <SolidColorBrush x:Key="RadGenOutlineBrush" Color="{DynamicResource RadGenOutlineColor}" />
+    <SolidColorBrush x:Key="RadGenHeadingBrush" Color="{DynamicResource RadGenHeadingColor}" />
 
 
     <!-- windows: main colour with contrast text -->

@@ -16,6 +16,13 @@
             <Setter Property="Margin" Value="0,6,12,0" />
             <Setter Property="VerticalAlignment" Value="Top" />
         </Style>
+        <!-- the description's formatting buttons, small and in a row, that leave the focus and the selection in the text box -->
+        <Style Selector=":is(Button).format">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="MinWidth" Value="34" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
     </UserControl.Styles>
 
     <DockPanel Margin="8,6">
@@ -67,7 +74,34 @@
                     <TextBox Name="TitleBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" />
 
                     <TextBlock Grid.Row="2" Classes="label top" Text="Description:" />
-                    <TextBox Name="DescriptionBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,12" MinHeight="120" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                    <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,12">
+                        <!-- Steam's text formatting: buttons wrap the selection in its tags, and the preview shows the result the way the workshop page would -->
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Name="EditToggle" Classes="format" Content="Edit" IsChecked="True" Click="OnDescriptionViewToggle" />
+                                <ToggleButton Name="PreviewToggle" Classes="format" Content="Preview" Click="OnDescriptionViewToggle" />
+                            </StackPanel>
+                            <StackPanel Name="FormatButtons" Orientation="Horizontal" Spacing="4">
+                                <Button Classes="format" Content="B" FontWeight="Bold" Tag="b" Click="OnFormat" />
+                                <Button Classes="format" Content="I" FontStyle="Italic" Tag="i" Click="OnFormat" />
+                                <Button Classes="format" Tag="u" Click="OnFormat"><TextBlock Text="U" TextDecorations="Underline" /></Button>
+                                <Button Classes="format" Tag="strike" Click="OnFormat"><TextBlock Text="S" TextDecorations="Strikethrough" /></Button>
+                                <Button Classes="format" Content="H1" Tag="h1" Click="OnFormat" />
+                                <Button Classes="format" Content="H2" Tag="h2" Click="OnFormat" />
+                                <Button Classes="format" Content="Link" Tag="url" Click="OnFormat" />
+                                <Button Classes="format" Content="List" Tag="list" Click="OnFormat" />
+                                <Button Classes="format" Content="Image" Tag="img" Click="OnFormat" />
+                                <Button Classes="format" Content="Code" Tag="code" Click="OnFormat" />
+                                <Button Classes="format" Content="Spoiler" Tag="spoiler" Click="OnFormat" />
+                            </StackPanel>
+                        </DockPanel>
+                        <Panel>
+                            <TextBox Name="DescriptionBox" MinHeight="120" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" />
+                            <ScrollViewer Name="DescriptionPreview" IsVisible="False" Background="{DynamicResource RadGenFieldBrush}" Padding="12,10" TextElement.Foreground="{DynamicResource RadGenContrastSoftBrush}">
+                                <local:BbCodeView Name="DescriptionRendered" />
+                            </ScrollViewer>
+                        </Panel>
+                    </DockPanel>
 
                     <TextBlock Name="AddonLabel" Grid.Row="3" Classes="label top" Text="Addon Folder:" />
                     <StackPanel Name="AddonPanel" Grid.Row="3" Grid.Column="1" Margin="0,0,0,12" Spacing="8">

@@ -15,8 +15,9 @@ public sealed class PreviewImage : Panel
     /// <summary>A <see cref="Bitmap"/> or an <see cref="IGifSource"/> from <see cref="Decode"/>.</summary>
     public static readonly StyledProperty<object?> SourceProperty = AvaloniaProperty.Register<PreviewImage, object?>(nameof(Source));
 
-    private readonly Image image = new() { Stretch = Stretch.Uniform };
-    private readonly GifImage gif = new() { Stretch = Stretch.Uniform, IsVisible = false };
+    // pictures shrink to fit but are never blown up past their own size
+    private readonly Image image = new() { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly };
+    private readonly GifImage gif = new() { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, IsVisible = false };
 
     public PreviewImage()
     {
