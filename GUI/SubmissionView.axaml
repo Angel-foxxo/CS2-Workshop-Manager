@@ -47,6 +47,7 @@
                     <Button Content="Browse..." MinWidth="80" Click="OnBrowse" />
                     <Button Content="Clear" MinWidth="80" Click="OnClearPreview" />
                 </StackPanel>
+                <TextBlock Name="PreviewPath" DockPanel.Dock="Bottom" Margin="0,8,0,0" IsVisible="False" Foreground="{DynamicResource RadGenContrastSoftBrush}" TextTrimming="CharacterEllipsis" />
                 <Border Name="PreviewDrop" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" DragDrop.AllowDrop="True">
                     <Panel Margin="12">
                         <TextBlock Name="PreviewHint" Text="Drag an image here or click Browse" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastSoftBrush}" />

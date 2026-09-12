@@ -72,6 +72,7 @@ public partial class SubmissionView : UserControl
         this.manager = manager;
         item = row?.Item;
         thumbnailPath = null;
+        PreviewPath.IsVisible = false;
 
         Heading.Text = mode switch
         {
@@ -174,7 +175,7 @@ public partial class SubmissionView : UserControl
     {
         thumbnailPath = null;
         SetPreview(null);
-        Status.Text = string.Empty;
+        PreviewPath.IsVisible = false;
     }
 
     private async void OnBrowse(object? sender, RoutedEventArgs e)
@@ -215,7 +216,8 @@ public partial class SubmissionView : UserControl
             var file = await File.ReadAllBytesAsync(path);
 
             thumbnailPath = path;
-            Status.Text = path;
+            PreviewPath.Text = path;
+            PreviewPath.IsVisible = true;
 
             try
             {
@@ -225,7 +227,7 @@ public partial class SubmissionView : UserControl
             {
                 // the upload can still convert formats the window can not show, whatever the decoder throws
                 SetPreview(null);
-                Status.Text = $"{path} will be uploaded, but can not be shown here.";
+                Status.Text = "The image will be uploaded, but can not be shown here.";
             }
         }
         catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
