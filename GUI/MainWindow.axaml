@@ -10,6 +10,42 @@
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource RadGenAppBrush}">
+    <Window.Resources>
+        <!-- the toolbar's actions on an item again, on a right click over one -->
+        <ContextMenu x:Key="ItemMenu">
+            <ContextMenu.Styles>
+                <Style Selector="Separator">
+                    <Setter Property="Margin" Value="8,2" />
+                    <Setter Property="Background" Value="{DynamicResource RadGenOutlineBrush}" />
+                    <Setter Property="Opacity" Value="0.5" />
+                </Style>
+            </ContextMenu.Styles>
+            <MenuItem Header="Re-Upload" Click="OnReUpload">
+                <MenuItem.Icon>
+                    <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/reupload.png" Width="18" Height="18" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator />
+            <MenuItem Header="Edit" Click="OnEdit">
+                <MenuItem.Icon>
+                    <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/edit.png" Width="18" Height="18" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator />
+            <MenuItem Header="View" Click="OnView">
+                <MenuItem.Icon>
+                    <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/view.png" Width="18" Height="18" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator />
+            <MenuItem Header="Delete" Click="OnDelete">
+                <MenuItem.Icon>
+                    <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/delete.png" Width="18" Height="18" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </Window.Resources>
+
     <Window.Styles>
         <!-- toolbar buttons and the view toggles: icon over label, like the workshop manager's -->
         <Style Selector=":is(Button).tool">
@@ -128,7 +164,7 @@
         <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource RadGenShadeBrush}">
             <!-- this panel is always the viewport width, which sizes the tiles to whole columns, see OnTilesViewportSizeChanged -->
             <Panel SizeChanged="OnTilesViewportSizeChanged">
-                <ListBox Name="TileItems" Margin="4" HorizontalAlignment="Center" Background="Transparent" BorderThickness="0" SelectionMode="Single" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox Name="TileItems" Margin="4" HorizontalAlignment="Center" Background="Transparent" BorderThickness="0" SelectionMode="Single" ContextMenu="{StaticResource ItemMenu}" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel />
@@ -159,6 +195,7 @@
 
         <DataGrid Name="PublishedItems"
                   x:DataType="local:WorkshopItemRow"
+                  ContextMenu="{StaticResource ItemMenu}"
                   IsReadOnly="True"
                   CanUserReorderColumns="True"
                   CanUserResizeColumns="True"

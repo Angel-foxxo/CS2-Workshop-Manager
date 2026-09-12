@@ -4,8 +4,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using CS2WorkshopManager;
 
 namespace GUI;
@@ -38,6 +41,33 @@ public partial class MainWindow : Window
         PublishedItems.ItemsSource = rows;
         TileItems.ItemsSource = rows;
         Loaded += OnLoaded;
+
+        // before the right click menu opens, the item under the pointer is the selected one
+        PublishedItems.AddHandler(PointerPressedEvent, OnItemPressed, RoutingStrategies.Tunnel);
+        TileItems.AddHandler(PointerPressedEvent, OnItemPressed, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>
+    /// A right click selects the item under the pointer, as a left click would, so the menu's actions apply to it.
+    /// </summary>
+    private void OnItemPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed || e.Source is not Visual source)
+        {
+            return;
+        }
+
+        if (sender == PublishedItems)
+        {
+            if (source.FindAncestorOfType<DataGridRow>() is { } row)
+            {
+                PublishedItems.SelectedItem = row.DataContext;
+            }
+        }
+        else if (source.FindAncestorOfType<ListBoxItem>() is { } tile)
+        {
+            TileItems.SelectedItem = tile.DataContext;
+        }
     }
 
     /// <summary>
