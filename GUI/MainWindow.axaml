@@ -10,7 +10,7 @@
         Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource RadGenBackgroundBrush}">
+        Background="{DynamicResource RadGenAppBrush}">
     <Window.Styles>
         <!-- toolbar buttons and the view toggles: icon over label, like the workshop manager's -->
         <Style Selector=":is(Button).tool">
@@ -48,6 +48,9 @@
         </Style>
     </Window.Styles>
 
+    <Panel>
+        <!-- window background: a subtle glow of the accent fading to the main colour, dithered so it does not band -->
+        <local:DitheredGradient CenterColor="{DynamicResource RadGenAppAccentColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="90%,0%" />
     <DockPanel>
         <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource RadGenContrastBrush}" />
 
@@ -121,7 +124,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:WorkshopItemRow">
                         <!-- fixed height so every tile in a row is the same, sized for a two line title or two lines of tags -->
-                        <Border Width="256" Height="268" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource RadGenAppBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1">
+                        <Border Width="256" Height="268" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1">
                             <DockPanel>
                                 <Panel DockPanel.Dock="Top" Height="135">
                                     <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
@@ -244,4 +247,5 @@
         </DataGrid>
         </Panel>
     </DockPanel>
+    </Panel>
 </Window>

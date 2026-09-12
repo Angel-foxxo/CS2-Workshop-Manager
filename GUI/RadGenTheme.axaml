@@ -40,11 +40,6 @@
     <SolidColorBrush x:Key="RadGenContrastSoftBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
     <SolidColorBrush x:Key="RadGenAccentBrush" Color="{DynamicResource RadGenAccentColor}" />
 
-    <!-- window background: a subtle glow of the accent in the middle, fading to the main colour at the edges -->
-    <RadialGradientBrush x:Key="RadGenBackgroundBrush" Center="50%,50%" GradientOrigin="90%,0%" RadiusX="75%" RadiusY="75%">
-        <GradientStop Offset="0" Color="{DynamicResource RadGenAppAccentColor}" />
-        <GradientStop Offset="1" Color="{DynamicResource RadGenAppColor}" />
-    </RadialGradientBrush>
 
     <!-- windows: main colour with contrast text -->
     <SolidColorBrush x:Key="SystemRegionBrush" Color="{DynamicResource RadGenAppColor}" />
