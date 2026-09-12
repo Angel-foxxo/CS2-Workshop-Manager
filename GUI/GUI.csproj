@@ -37,5 +37,6 @@
     <!-- the window icon, the exe icon above is only used by Windows -->
     <AvaloniaResource Include="assets\icon.ico" />
     <AvaloniaResource Include="assets\buttons\*.png" />
+    <AvaloniaResource Include="assets/danger.png" />
   </ItemGroup>
 </Project>

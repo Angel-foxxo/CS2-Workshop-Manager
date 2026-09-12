@@ -12,6 +12,8 @@
             <Color x:Key="RadGenAccentColor">#2EACD4</Color>
             <!-- the main colour a quarter of the way to the accent, for the window gradient -->
             <Color x:Key="RadGenAppAccentColor">#ADCCD6</Color>
+            <!-- the main colour a third of the way to red, for the gradient behind destructive prompts -->
+            <Color x:Key="RadGenAppDangerColor">#D9A9A9</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="RadGenShadeColor">#FFFFFF</Color>
         </ResourceDictionary>
@@ -25,6 +27,8 @@
             <Color x:Key="RadGenAccentColor">#3A558C</Color>
             <!-- the main colour a quarter of the way to the accent, for the window gradient -->
             <Color x:Key="RadGenAppAccentColor">#222A3A</Color>
+            <!-- the main colour a third of the way to red, for the gradient behind destructive prompts -->
+            <Color x:Key="RadGenAppDangerColor">#4E2225</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="RadGenShadeColor">#000000</Color>
         </ResourceDictionary>

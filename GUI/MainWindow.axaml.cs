@@ -20,6 +20,9 @@ public partial class MainWindow : Window
     /// <summary>A tile in the tiles view including its margins.</summary>
     private const double TileWidth = 264;
 
+    /// <summary>The workshop manager's own wording.</summary>
+    private const string DeleteConfirmation = "This will delete the submission from the workshop and users subscribed to it will no longer be able to access it.\n\nThis action cannot be undone!\n\nAre you sure you want to delete the submission?";
+
     private static readonly HttpClient Http = new();
 
     /// <summary>How many thumbnails are downloaded at once.</summary>
@@ -64,6 +67,40 @@ public partial class MainWindow : Window
     private async void OnRefresh(object? sender, RoutedEventArgs e)
     {
         await LoadItemsAsync();
+    }
+
+    private async void OnDelete(object? sender, RoutedEventArgs e)
+    {
+        var selected = Tiles.IsVisible ? TileItems.SelectedItem : PublishedItems.SelectedItem;
+
+        if (selected is not WorkshopItemRow row)
+        {
+            Status.Text = "Select a map to delete.";
+            return;
+        }
+
+        if (!await new ConfirmDialog("Delete Submission", DeleteConfirmation).ShowDialog<bool>(this))
+        {
+            return;
+        }
+
+        DeleteButton.IsEnabled = false;
+
+        try
+        {
+            await WorkshopManager.DeleteItemAsync(row.PublishedFileId);
+
+            rows.Remove(row);
+            Status.Text = $"Deleted {row.Title}, {rows.Count} published items";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException)
+        {
+            Status.Text = exception.Message;
+        }
+        finally
+        {
+            DeleteButton.IsEnabled = true;
+        }
     }
 
     /// <summary>

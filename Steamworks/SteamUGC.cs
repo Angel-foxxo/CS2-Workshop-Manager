@@ -43,6 +43,7 @@ public sealed class SteamUGC
         SubmitItemUpdate = 66,
         GetItemUpdateProgress = 67,
         GetItemInstallInfo = 77,
+        DeleteItem = 90,
     }
 
     private readonly nint instance;
@@ -190,6 +191,12 @@ public sealed class SteamUGC
         var status = ((delegate* unmanaged<void*, ulong, ulong*, ulong*, int>)VTable[(int)Slot.GetItemUpdateProgress])((void*)instance, handle, &bytesProcessed, &bytesTotal);
 
         return new ItemUpdateProgress((EItemUpdateStatus)status, bytesProcessed, bytesTotal);
+    }
+
+    /// <returns>Call handle for <see cref="SteamClient.WaitForCallResultAsync{T}"/> with <see cref="DeleteItemResult"/>.</returns>
+    public unsafe ulong DeleteItem(ulong publishedFileId)
+    {
+        return ((delegate* unmanaged<void*, ulong, ulong>)VTable[(int)Slot.DeleteItem])((void*)instance, publishedFileId);
     }
 
     /// <summary>
@@ -343,6 +350,18 @@ public readonly record struct CreateItemResult(EResult Result, ulong PublishedFi
             (EResult)BinaryPrimitives.ReadInt32LittleEndian(data),
             BinaryPrimitives.ReadUInt64LittleEndian(data[publishedFileIdOffset..]),
             data[publishedFileIdOffset + sizeof(ulong)] != 0);
+    }
+}
+
+/// <summary>DeleteItemResult_t</summary>
+public readonly record struct DeleteItemResult(EResult Result, ulong PublishedFileId) : ICallResult<DeleteItemResult>
+{
+    public static DeleteItemResult Read(ReadOnlySpan<byte> data)
+    {
+        // EResult m_eResult; PublishedFileId_t m_nPublishedFileId;
+        return new DeleteItemResult(
+            (EResult)BinaryPrimitives.ReadInt32LittleEndian(data),
+            BinaryPrimitives.ReadUInt64LittleEndian(data[SteamClient.StructPack..]));
     }
 }
 

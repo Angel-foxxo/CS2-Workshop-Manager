@@ -284,6 +284,19 @@ public sealed class WorkshopManager
         return new WorkshopPublishResult(publishedFileId, result.UserNeedsToAcceptWorkshopLegalAgreement);
     }
 
+    /// <summary>
+    /// Deletes a published item from the workshop, which can not be undone.
+    /// </summary>
+    public static async Task DeleteItemAsync(ulong publishedFileId)
+    {
+        var result = await Steam.WaitForCallResultAsync<DeleteItemResult>(Steam.UGC.DeleteItem(publishedFileId)).ConfigureAwait(false);
+
+        if (result.Result != EResult.OK)
+        {
+            throw new InvalidOperationException($"DeleteItem failed: {result.Result}");
+        }
+    }
+
     private static async Task<ulong> CreateItemAsync()
     {
         var result = await Steam.WaitForCallResultAsync<CreateItemResult>(Steam.UGC.CreateItem(AppId, EWorkshopFileType.Community)).ConfigureAwait(false);

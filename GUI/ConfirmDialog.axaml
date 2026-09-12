@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:GUI"
+        x:Class="GUI.ConfirmDialog"
+        Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RadGenAppBrush}">
+    <Panel>
+        <!-- the main window's gradient, but glowing red for a destructive question -->
+        <local:DitheredGradient CenterColor="{DynamicResource RadGenAppDangerColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="105%,-1%" />
+
+        <StackPanel Margin="20" Spacing="16" MaxWidth="540">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Image Source="avares://CS2WorkshopManager-GUI/assets/danger.png" Width="96" Height="96" VerticalAlignment="Center" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                <TextBlock Name="Message" TextWrapping="Wrap" MaxWidth="440" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Yes" MinWidth="80" Click="OnYes" />
+                <Button Content="No" MinWidth="80" IsDefault="True" IsCancel="True" Click="OnNo" />
+            </StackPanel>
+        </StackPanel>
+    </Panel>
+</Window>
