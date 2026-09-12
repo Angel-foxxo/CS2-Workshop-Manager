@@ -16,6 +16,12 @@
             <Color x:Key="RadGenAppDangerColor">#D9A9A9</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="RadGenShadeColor">#FFFFFF</Color>
+            <!-- the controls, tinted towards the accent like the gradient behind them: faces of buttons, the wells of text boxes, popups, outlines -->
+            <Color x:Key="RadGenControlColor">#C3D0DC</Color>
+            <Color x:Key="RadGenControlHoverColor">#B3C4D4</Color>
+            <Color x:Key="RadGenFieldColor">#EDF2F6</Color>
+            <Color x:Key="RadGenPopupColor">#E4EBF1</Color>
+            <Color x:Key="RadGenOutlineColor">#8FA3B6</Color>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <Color x:Key="RadGenAppColor">#1A1B1E</Color>
@@ -31,6 +37,12 @@
             <Color x:Key="RadGenAppDangerColor">#4E2225</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="RadGenShadeColor">#000000</Color>
+            <!-- the controls, tinted towards the accent like the gradient behind them: faces of buttons, the wells of text boxes, popups, outlines -->
+            <Color x:Key="RadGenControlColor">#2B3549</Color>
+            <Color x:Key="RadGenControlHoverColor">#354262</Color>
+            <Color x:Key="RadGenFieldColor">#161A23</Color>
+            <Color x:Key="RadGenPopupColor">#202735</Color>
+            <Color x:Key="RadGenOutlineColor">#3E4B66</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -43,12 +55,70 @@
     <SolidColorBrush x:Key="RadGenContrastBrush" Color="{DynamicResource RadGenContrastColor}" />
     <SolidColorBrush x:Key="RadGenContrastSoftBrush" Color="{DynamicResource RadGenContrastSoftColor}" />
     <SolidColorBrush x:Key="RadGenAccentBrush" Color="{DynamicResource RadGenAccentColor}" />
+    <SolidColorBrush x:Key="RadGenControlBrush" Color="{DynamicResource RadGenControlColor}" />
+    <SolidColorBrush x:Key="RadGenControlHoverBrush" Color="{DynamicResource RadGenControlHoverColor}" />
+    <SolidColorBrush x:Key="RadGenFieldBrush" Color="{DynamicResource RadGenFieldColor}" />
+    <SolidColorBrush x:Key="RadGenPopupBrush" Color="{DynamicResource RadGenPopupColor}" />
+    <SolidColorBrush x:Key="RadGenOutlineBrush" Color="{DynamicResource RadGenOutlineColor}" />
 
 
     <!-- windows: main colour with contrast text -->
     <SolidColorBrush x:Key="SystemRegionBrush" Color="{DynamicResource RadGenAppColor}" />
     <SolidColorBrush x:Key="SystemControlForegroundBaseHighBrush" Color="{DynamicResource RadGenContrastColor}" />
     <StaticResource x:Key="SystemAccentColor" ResourceKey="RadGenAccentColor" />
+
+    <!-- buttons: a tinted face that brightens under the pointer and turns accent when pressed -->
+    <StaticResource x:Key="ButtonBackground" ResourceKey="RadGenControlBrush" />
+    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="RadGenControlHoverBrush" />
+    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="ToggleButtonBackground" ResourceKey="RadGenControlBrush" />
+    <StaticResource x:Key="ToggleButtonBackgroundPointerOver" ResourceKey="RadGenControlHoverBrush" />
+    <StaticResource x:Key="ToggleButtonBackgroundPressed" ResourceKey="RadGenAccentBrush" />
+
+    <!-- text boxes and combo boxes: a dark well with a tinted outline, accent when focused -->
+    <StaticResource x:Key="TextControlBackground" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="TextControlBorderBrush" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="RadGenContrastSoftBrush" />
+    <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ComboBoxBackground" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="RadGenControlBrush" />
+    <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="RadGenControlHoverBrush" />
+    <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="RadGenContrastSoftBrush" />
+    <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="RadGenPopupBrush" />
+    <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="RadGenControlHoverBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundPressed" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPressed" ResourceKey="RadGenAccentBrush" />
+
+    <!-- check boxes: the same well and outline as the fields -->
+    <StaticResource x:Key="CheckBoxCheckBackgroundFillUnchecked" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="CheckBoxCheckBackgroundFillUncheckedPressed" ResourceKey="RadGenControlBrush" />
+    <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUnchecked" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" ResourceKey="RadGenContrastSoftBrush" />
+    <StaticResource x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" ResourceKey="RadGenAccentBrush" />
+
+    <!-- popups: flyouts and menus on a tinted panel with the outline colour around them -->
+    <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="RadGenPopupBrush" />
+    <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="RadGenPopupBrush" />
+    <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="RadGenControlHoverBrush" />
+    <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="RadGenAccentBrush" />
+
+    <!-- scroll bars and progress: tinted thumbs and a field coloured track -->
+    <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="RadGenOutlineBrush" />
+    <StaticResource x:Key="ScrollBarThumbFillPointerOver" ResourceKey="RadGenContrastSoftBrush" />
+    <StaticResource x:Key="ScrollBarThumbFillPressed" ResourceKey="RadGenAccentBrush" />
+    <StaticResource x:Key="ProgressBarBackground" ResourceKey="RadGenFieldBrush" />
+    <StaticResource x:Key="ProgressBarForeground" ResourceKey="RadGenAccentBrush" />
 
     <!-- data grid: soft main colour panel, faded soft contrast grid lines, accent selection -->
     <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{DynamicResource RadGenShadeColor}" Opacity="0.1" />

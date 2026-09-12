@@ -20,5 +20,10 @@
         <Style Selector="MenuFlyoutPresenter, MenuItem">
             <Setter Property="Cursor" Value="Arrow" />
         </Style>
+
+        <!-- Fluent shrinks a pressed button a little, which a dropdown stretched across a column shows as a squeeze -->
+        <Style Selector="DropDownButton:pressed">
+            <Setter Property="RenderTransform" Value="none" />
+        </Style>
     </Application.Styles>
 </Application>
