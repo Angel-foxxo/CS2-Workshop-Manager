@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # native AOT can not cross compile, so every platform Steam runs on gets its own runner
+        # native AOT can not cross compile, so Windows and Linux each get their own runner
         include:
         - os: windows-latest
           runtime: win-x64
@@ -79,9 +79,6 @@ jobs:
         - os: ubuntu-latest
           runtime: linux-x64
           platform: linux-x64
-        - os: macos-latest
-          runtime: osx-arm64
-          platform: macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -147,8 +144,7 @@ jobs:
        mkdir release
        for app in CLI GUI; do
          chmod +x artifacts/CS2WorkshopManager-${app}-linux-x64/CS2WorkshopManager-${app}
-         chmod +x artifacts/CS2WorkshopManager-${app}-macos-arm64/CS2WorkshopManager-${app}
-         for platform in windows-x64 linux-x64 macos-arm64; do
+         for platform in windows-x64 linux-x64; do
            zip -9j release/CS2WorkshopManager-${app}-${platform}.zip artifacts/CS2WorkshopManager-${app}-${platform}/*
          done
        done

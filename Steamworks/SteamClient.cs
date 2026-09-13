@@ -214,10 +214,6 @@ public sealed class SteamClient : IDisposable
         {
             path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "sdk64", "steamclient.so");
         }
-        else if (OperatingSystem.IsMacOS())
-        {
-            path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Steam", "Steam.AppBundle", "Steam", "Contents", "MacOS", "steamclient.dylib");
-        }
 
         return path != null && File.Exists(path) ? path : throw new InvalidOperationException("Steam is not running.");
     }
