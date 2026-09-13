@@ -10,7 +10,7 @@
     <Window.Styles>
         <!-- file rows are many, so they sit tight -->
         <Style Selector="ItemsControl#FilesList CheckBox">
-            <Setter Property="Margin" Value="8,1" />
+            <Setter Property="Margin" Value="0,1" />
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="Padding" Value="6,2" />
         </Style>
@@ -46,7 +46,7 @@
                             <ItemsControl Name="RulesList">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="local:RuleRow">
-                                        <DockPanel Margin="12,4">
+                                        <DockPanel Margin="0,4">
                                             <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
                                             <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
                                             <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />

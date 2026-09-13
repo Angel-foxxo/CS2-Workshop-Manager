@@ -230,10 +230,10 @@
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Width="136" CanUserSort="False" CanUserResize="False" CanUserReorder="False">
+                <DataGridTemplateColumn Width="144" CanUserSort="False" CanUserResize="False" CanUserReorder="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="local:WorkshopItemRow">
-                            <local:PreviewImage Width="128" Height="128" Margin="4" Source="{Binding Thumbnail}" />
+                            <local:PreviewImage Width="128" Height="128" Margin="12,4,4,4" Source="{Binding Thumbnail}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
