@@ -11,9 +11,6 @@
     <Window.Resources>
         <!-- tree rows are many, so they sit tight -->
         <x:Double x:Key="TreeViewItemMinHeight">24</x:Double>
-        <!-- a folder and a page, drawn the same size -->
-        <StreamGeometry x:Key="FolderIcon">M1 3.5A1.5 1.5 0 0 1 2.5 2h3.3a1.5 1.5 0 0 1 1.06.44L8 3.5h5.5A1.5 1.5 0 0 1 15 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9Z</StreamGeometry>
-        <StreamGeometry x:Key="FileIcon">M4 1h5.5L13 4.5V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Zm5.5 1v2.5H12L9.5 2Z</StreamGeometry>
     </Window.Resources>
     <Window.Styles>
         <!-- what is expanded belongs to the node, so it survives the tree being shown again -->
@@ -70,8 +67,7 @@
                                     <DockPanel>
                                         <CheckBox IsChecked="{Binding Packed, Mode=OneWay}" IsThreeState="{Binding IsFolder}" Click="OnNodeClick" DoubleTapped="OnNodeDoubleTapped" MinHeight="0" Padding="0" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Margin="12,0,16,0" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
-                                        <Path IsVisible="{Binding IsFolder}" Data="{StaticResource FolderIcon}" Fill="{DynamicResource HeadingBrush}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                        <Path IsVisible="{Binding !IsFolder}" Data="{StaticResource FileIcon}" Fill="{DynamicResource ContrastSoftBrush}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <local:SvgIcon Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </DockPanel>
                                 </TreeDataTemplate>

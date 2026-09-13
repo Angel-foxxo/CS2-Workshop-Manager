@@ -36,6 +36,8 @@ public sealed class FileNode(string relativePath, bool isFolder) : INotifyProper
 
     public bool IsFolder { get; } = isFolder;
 
+    public string Icon { get; } = isFolder ? SvgIcon.Folder : SvgIcon.ForFile(relativePath);
+
     /// <summary>A folder's folders first and then its files, the largest first.</summary>
     public List<FileNode> Children { get; } = [];
 
