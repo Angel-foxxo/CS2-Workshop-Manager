@@ -305,7 +305,7 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// Every workshop item the logged in account has published for Counter-Strike 2 with the CS2 tag, most recently updated first, as Steam's pages of them arrive.
+    /// Every workshop item the logged in account has published for Counter-Strike 2 with the CS2 tag, newest first, as Steam's pages of them arrive.
     /// </summary>
     public static async IAsyncEnumerable<WorkshopItem> GetPublishedItemsAsync()
     {
@@ -317,7 +317,7 @@ public sealed class WorkshopManager
 
         for (var page = 1u; ; page++)
         {
-            var query = ugc.CreateQueryUserUGCRequest(accountId, EUserUGCList.Published, EUGCMatchingUGCType.Items, EUserUGCListSortOrder.LastUpdatedDesc, AppId, AppId, page);
+            var query = ugc.CreateQueryUserUGCRequest(accountId, EUserUGCList.Published, EUGCMatchingUGCType.Items, EUserUGCListSortOrder.CreationOrderDesc, AppId, AppId, page);
 
             if (query == SteamUGC.InvalidQueryHandle)
             {

@@ -364,7 +364,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Dates" Width="240" MinWidth="180" SortMemberPath="LastUpdated">
+                <DataGridTemplateColumn Header="Dates" Width="240" MinWidth="180" SortMemberPath="DateCreated">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="local:WorkshopItemRow">
                             <StackPanel Spacing="4" VerticalAlignment="Center">

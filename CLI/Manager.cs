@@ -401,7 +401,7 @@ public static class Commands
     }
 
     /// <summary>
-    /// Lists the workshop items the logged in Steam account has published, most recently updated first.
+    /// Lists the workshop items the logged in Steam account has published, newest first.
     /// </summary>
     public static async Task<int> List()
     {
