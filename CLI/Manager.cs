@@ -631,7 +631,7 @@ public static class RulesCommands
     }
 
     /// <summary>
-    /// Brings a file or folder into the upload that gameinfo or an earlier rule keeps out. The rule goes first, so it wins over the rules before it and over gameinfo.
+    /// Brings a file or folder into the upload. The rule goes first, so it wins over the rules before it and over gameinfo.
     /// </summary>
     /// <param name="pattern">Path under the addon the rule starts with, a folder ending in a slash such as materials/dev/.</param>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>

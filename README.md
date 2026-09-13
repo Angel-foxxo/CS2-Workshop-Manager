@@ -1,18 +1,30 @@
 # CS2 Workshop Manager
 
-External Counter-Strike 2 Workshop Manager, it packs a compiled addon the same way Valve's tool does and publishes it to the Steam Workshop, then lets you manage everything you have published, from a desktop app or from the command line.
+External Counter-Strike 2 Workshop Manager. 
+
+Packs a compiled addon the same way Valve's tool does and publishes it to the Steam Workshop, then lets you manage everything you have published.
 
 ![Hero](.github/assets/hero.png)
 
-It comes in three parts:
+Projects:
 
-- **GUI**, a desktop app for Windows and Linux.
-- **CLI**, a command line tool for scripts and build pipelines.
-- **CS2WorkshopManager**, the library both are built on, published on NuGet for your own tools.
+- **GUI** - Cross-platform desktop app.
+- **CLI** - Command-line tool for scripts and build pipelines.
+- **CS2WorkshopManager** - Library that the GUI and CLI projects are built on, published as a Nuget package.
 
-## Why
+## Features
 
-Valve's workshop manager only runs inside the game's tools, needs the addon open in Hammer, and has its share of rough edges, such as truncating descriptions when you re-upload. This one does the same job outside the tools, matches the original's packing logic file for file, and adds what the original lacks: a list of your published items with their statistics, editing an item's info without re-uploading its files, a description editor that previews Steam's formatting, and control over which files go into the upload.
+Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this tool aims to fix and or improve on all of them.
+
+- Fixed loading descriptions, it will now show the entire description instead of just the first 255 bytes.
+- Added a new description editor, with Steam BBCode preview.
+- Added "Unlisted" visiblity option.
+- Added support for more thumnail file types as well as relutions.
+- Added support for GIF thumbnails.
+- Added support for custom used defined tags.
+- Added new tool "Pack Filter" allowing you to define custom file packing rules.
+- Improved user interface, thumbnails are now shown, more stats like subscribers, views, likes and favourites per item, a grid view as well as a search bar.
+- Linux support.
 
 ## Requirements
 
@@ -20,31 +32,13 @@ Valve's workshop manager only runs inside the game's tools, needs the addon open
 - Steam running and logged into the account that owns the workshop items.
 - Windows or Linux. Releases are self-contained and need no .NET install.
 
-Building from source needs the .NET 10 SDK.
-
-## The desktop app
-
-The main window lists every workshop item the logged in account has published for Counter-Strike 2, as a list or as tiles, with subscriber, view, like and favourite counts, tags, visibility and dates. A search box narrows the list by title, tags, description or workshop ID.
-
-From there you can:
-
-- **New**: publish an addon as a new workshop item.
-- **Re-Upload**: upload an addon's files again to an existing item, with a change note.
-- **Edit**: change an item's title, description, thumbnail, visibility or game modes without uploading files. Only what you change is sent.
-- **View**: open the item's workshop page in your browser.
-- **Delete**: remove the item from the workshop, after confirmation.
-- **Pack Filter**: see every file under an addon as a tree, ticked when the upload takes it, and tick or untick files and folders to change that.
-
-The publish form shows the same asset type graph as Valve's tool, so you can see what the upload is made of before sending it. The description editor has formatting buttons for Steam's markup and a preview that renders it the way the workshop page will, pictures included. When the tools are running, the addon they have open is chosen for you.
-
 ## The command line tool
 
-```
-CS2WorkshopManager-CLI upload --addon prophunt --title "Prophunt Mirage" --visibility unlisted
-CS2WorkshopManager-CLI upload --addon prophunt --title "Prophunt Mirage" --id 3611562098 --changenote "Fixed the lighting"
-CS2WorkshopManager-CLI edit --id 3611562098 --description_file description.txt
-CS2WorkshopManager-CLI list
-```
+Exposes the full functionality that the base library and GUI expose, useful for automating map updates which was the initial motivator for this project.
+
+![CLI](.github/assets/cli.png)
+
+### Commands
 
 | Command | What it does |
 |---|---|
@@ -58,25 +52,20 @@ CS2WorkshopManager-CLI list
 | `files` | Lists the files an addon would upload, or every file with `--all`. |
 | `rules` | Lists, adds and removes an addon's packing rules. |
 
-Every command has `--help`. The game is found through Steam, or pass `--game` with the install folder. `upload --stage_only` packs the addon into `game/csgo_addons/vpks/<id>` without talking to Steam, which is useful for checking what would be sent.
 
-## Packing rules
-
-The upload takes the files that `gameinfo.gi` lists under `VpkDirectories`, minus the files the workshop manager always leaves out, exactly as Valve's tool does. On top of that you can keep files out or bring files in with rules of your own, saved as `publish_rules.txt` in the addon's content folder, `content/csgo_addons/<addon>`:
-
+### Example
 ```
-"publish_rules"
-{
-	"exclude"	"materials/dev/"
-	"include"	"maps/backup.txt"
-}
+CS2WorkshopManager-CLI upload --addon prophunt --title "Prophunt Mirage" --visibility unlisted
+CS2WorkshopManager-CLI upload --addon prophunt --title "Prophunt Mirage" --id 3611562098 --changenote "Added more props"
+CS2WorkshopManager-CLI edit --id 3611562098 --description_file description.txt
+CS2WorkshopManager-CLI list
 ```
-
-A rule matches everything whose path starts with its text, a folder ending in a slash. The first matching rule wins, and your rules are checked before gameinfo's. The Pack Filter window and the `rules` command both write this file, and you can edit it by hand.
 
 ## The library
 
 The `CS2WorkshopManager` package wraps all of this for your own tools. It talks to the running Steam client directly, so it needs no Steamworks SDK or `steam_api` library alongside it.
+
+This library is also published as a C# Nuget package.
 
 ```csharp
 var manager = WorkshopManager.FromSteamInstall();
@@ -97,29 +86,19 @@ await foreach (var item in WorkshopManager.GetPublishedItemsAsync())
 }
 ```
 
-## Building
+## Packing rules
+
+The upload takes the files that `gameinfo.gi` lists under `VpkDirectories`, minus the files the workshop manager always leaves out, exactly as Valve's tool does. On top of that you can keep files out or bring files in with rules of your own, saved as `publish_rules.txt` in the addon's content root folder, `content/csgo_addons/<addon>`:
 
 ```
-dotnet build CS2WorkshopManager.slnx -c Release
+"publish_rules"
+{
+	"exclude"	"materials/dev/"
+	"include"	"maps/backup.txt"
+}
 ```
 
-The GUI publishes as a single self-contained executable and the CLI as a native AOT executable:
-
-```
-dotnet publish GUI/GUI.csproj -c Release -r win-x64
-dotnet publish CLI/CLI.csproj -c Release -r win-x64
-```
-
-Use `linux-x64` for Linux. Native AOT cannot cross compile, so each platform builds on its own machine, which is what the CI does.
-
-## Layout
-
-| Folder | What is in it |
-|---|---|
-| `CS2WorkshopManager` | The library: packing, rules, asset types and publishing. |
-| `Steamworks` | A minimal Steamworks binding that talks to the running Steam client. |
-| `GUI` | The Avalonia desktop app. |
-| `CLI` | The command line tool. |
+A rule matches everything whose path starts with its text, a folder ending in a slash. The first matching rule wins, and your rules are checked before gameinfo's. The Pack Filter window and the `rules` CLI command both write this file, and you can edit it by hand.
 
 ## Credits
 
