@@ -255,13 +255,13 @@ public sealed class BbCodeView : StackPanel
                 var heading = Paragraph();
                 heading.FontSize = node.Tag switch { "h1" => 22, "h2" => 18, _ => 15 };
                 heading.Margin = new Thickness(0, 8, 0, 0);
-                BindResource(heading, TextBlock.ForegroundProperty, "RadGenHeadingBrush");
+                BindResource(heading, TextBlock.ForegroundProperty, "HeadingBrush");
                 RenderInlines(node.Children, heading.Inlines!, default);
                 return heading;
 
             case "hr":
                 var rule = new Border { Height = 1, Margin = new Thickness(0, 6) };
-                BindResource(rule, Border.BackgroundProperty, "RadGenOutlineBrush");
+                BindResource(rule, Border.BackgroundProperty, "OutlineBrush");
                 return rule;
 
             case "list":
@@ -298,7 +298,7 @@ public sealed class BbCodeView : StackPanel
 
                 // Steam's quote is a ruled box, not a filled one
                 var quoteBox = new Border { Child = quote, Padding = new Thickness(16, 12), CornerRadius = new CornerRadius(2), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Left };
-                BindResource(quoteBox, Border.BorderBrushProperty, "RadGenOutlineBrush");
+                BindResource(quoteBox, Border.BorderBrushProperty, "OutlineBrush");
                 return quoteBox;
 
             case "code":
@@ -308,7 +308,7 @@ public sealed class BbCodeView : StackPanel
                     Padding = new Thickness(12, 8),
                     CornerRadius = new CornerRadius(3),
                 };
-                BindResource(codeBox, Border.BackgroundProperty, "RadGenFieldBrush");
+                BindResource(codeBox, Border.BackgroundProperty, "FieldBrush");
                 return codeBox;
 
             case "table":
@@ -365,7 +365,7 @@ public sealed class BbCodeView : StackPanel
 
                 // Steam gives cells generous room, and draws only their lines
                 var box = new Border { Child = content, Padding = new Thickness(16, 12), Background = Brushes.Transparent, BorderThickness = new Thickness(ruled ? 1 : 0) };
-                BindResource(box, Border.BorderBrushProperty, "RadGenOutlineBrush");
+                BindResource(box, Border.BorderBrushProperty, "OutlineBrush");
                 Grid.SetRow(box, row);
                 Grid.SetColumn(box, column);
                 grid.Children.Add(box);
@@ -510,7 +510,7 @@ public sealed class BbCodeView : StackPanel
         }
 
         var link = new TextBlock { Text = text, Cursor = new Cursor(StandardCursorType.Hand) };
-        BindResource(link, TextBlock.ForegroundProperty, "RadGenContrastBrush");
+        BindResource(link, TextBlock.ForegroundProperty, "ContrastBrush");
         link.PointerEntered += (_, _) => link.TextDecorations = TextDecorations.Underline;
         link.PointerExited += (_, _) => link.TextDecorations = null;
         link.PointerPressed += (_, _) => _ = TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(uri);
@@ -528,18 +528,18 @@ public sealed class BbCodeView : StackPanel
     {
         var content = new TextBlock { Text = text, Opacity = 0 };
         var cover = new Border { Child = content, Padding = new Thickness(4, 0), CornerRadius = new CornerRadius(2) };
-        BindResource(cover, Border.BackgroundProperty, "RadGenContrastBrush");
+        BindResource(cover, Border.BackgroundProperty, "ContrastBrush");
 
         cover.PointerEntered += (_, _) =>
         {
             content.Opacity = 1;
-            BindResource(cover, Border.BackgroundProperty, "RadGenFieldBrush");
+            BindResource(cover, Border.BackgroundProperty, "FieldBrush");
         };
 
         cover.PointerExited += (_, _) =>
         {
             content.Opacity = 0;
-            BindResource(cover, Border.BackgroundProperty, "RadGenContrastBrush");
+            BindResource(cover, Border.BackgroundProperty, "ContrastBrush");
         };
 
         return new InlineUIContainer(cover) { BaselineAlignment = BaselineAlignment.Center };

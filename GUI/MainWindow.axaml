@@ -9,14 +9,15 @@
         Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
         Width="1600" Height="900"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource RadGenAppBrush}">
+        Background="{DynamicResource AppBrush}"
+        local:WindowAccent.Color="{DynamicResource AccentColor}">
     <Window.Resources>
         <!-- the toolbar's actions on an item again, on a right click over one -->
         <ContextMenu x:Key="ItemMenu">
             <ContextMenu.Styles>
                 <Style Selector="Separator">
                     <Setter Property="Margin" Value="8,2" />
-                    <Setter Property="Background" Value="{DynamicResource RadGenOutlineBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource OutlineBrush}" />
                     <Setter Property="Opacity" Value="0.5" />
                 </Style>
             </ContextMenu.Styles>
@@ -51,22 +52,22 @@
         <Style Selector=":is(Button).tool">
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="MinWidth" Value="52" />
-            <Setter Property="Background" Value="{DynamicResource RadGenShadeBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource RadGenBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ShadeBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="5" />
         </Style>
         <Style Selector=":is(Button).tool:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RadGenBorderSoftBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource RadGenBorderSoftBrush}" />
+            <Setter Property="Background" Value="{DynamicResource BorderSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}" />
         </Style>
         <Style Selector=":is(Button).tool:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RadGenAccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource RadGenAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
         <Style Selector="ToggleButton.tool:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RadGenAccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource RadGenAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
         <Style Selector=":is(Button).tool StackPanel">
             <Setter Property="Spacing" Value="4" />
@@ -79,7 +80,7 @@
         <Style Selector=":is(Button).tool TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="{DynamicResource RadGenContrastBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ContrastBrush}" />
         </Style>
 
         <!-- tiles are list items so one can be selected, shown by an accent halo in the tile margin -->
@@ -88,20 +89,20 @@
             <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="ListBox#TileItems ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RadGenBorderSoftBrush}" />
+            <Setter Property="Background" Value="{DynamicResource BorderSoftBrush}" />
         </Style>
         <Style Selector="ListBox#TileItems ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource RadGenAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
         </Style>
     </Window.Styles>
 
     <Panel>
         <!-- window background: a subtle glow of the accent fading to the main colour, dithered so it does not band -->
-        <local:DitheredGradient CenterColor="{DynamicResource RadGenAppAccentColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="90%,0%" />
+        <local:DitheredGradient CenterColor="{DynamicResource AppAccentColor}" EdgeColor="{DynamicResource AppColor}" GradientOrigin="90%,0%" />
 
     <!-- the item list with its toolbar, or the publish form in its place -->
     <DockPanel Name="Main">
-        <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource RadGenContrastBrush}" />
+        <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource ContrastBrush}" />
 
         <DockPanel DockPanel.Dock="Top" Margin="8,6">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
@@ -167,7 +168,7 @@
 
         <!-- the two views share the space left by the bars, only one is visible -->
         <Panel>
-        <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource RadGenShadeBrush}">
+        <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource ShadeBrush}">
             <!-- this panel is always the viewport width, which sizes the tiles to whole columns, see OnTilesViewportSizeChanged -->
             <Panel SizeChanged="OnTilesViewportSizeChanged">
                 <ListBox Name="TileItems" Margin="4" HorizontalAlignment="Center" Background="Transparent" BorderThickness="0" SelectionMode="Single" ContextMenu="{StaticResource ItemMenu}" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -179,17 +180,17 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="local:WorkshopItemRow">
                         <!-- fixed height so every tile in a row is the same, sized for a two line title or two lines of tags -->
-                        <Border Width="256" Height="268" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1">
+                        <Border Width="256" Height="268" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                             <DockPanel>
                                 <local:PreviewImage DockPanel.Dock="Top" Height="135" Source="{Binding Thumbnail}" />
                                 <SelectableTextBlock Text="{Binding Title}" DockPanel.Dock="Top" Margin="0,10,0,0" FontWeight="SemiBold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" />
                                 <!-- the details sit centered in the room left under the title -->
                                 <StackPanel Spacing="10" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <SelectableTextBlock Text="{Binding Visibility}" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
-                                    <SelectableTextBlock Text="{Binding SizeMegabytes, StringFormat='{}{0:N2} MB'}" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
+                                    <SelectableTextBlock Text="{Binding Visibility}" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                    <SelectableTextBlock Text="{Binding SizeMegabytes, StringFormat='{}{0:N2} MB'}" Foreground="{DynamicResource ContrastSoftBrush}" />
                                 </StackPanel>
-                                <SelectableTextBlock Text="{Binding TagsLine}" Foreground="{DynamicResource RadGenContrastSoftBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" />
+                                <SelectableTextBlock Text="{Binding TagsLine}" Foreground="{DynamicResource ContrastSoftBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" />
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -209,7 +210,7 @@
                   HeadersVisibility="Column"
                   RowHeight="136"
                   ClipboardCopyMode="None"
-                  Background="{DynamicResource RadGenShadeBrush}"
+                  Background="{DynamicResource ShadeBrush}"
                   BorderThickness="0">
             <DataGrid.Styles>
                 <!-- cell text can be selected and copied, so it is wrapped and padded like the plain text cells would be -->

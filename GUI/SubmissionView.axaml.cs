@@ -471,7 +471,7 @@ public partial class SubmissionView : UserControl
 
             var question = $"This item was last published from addon \"{exception.PreviousAddonName}\".\n\nUpload it from \"{exception.AddonName}\" anyway?";
 
-            if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Different Addon Folder", question))
+            if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Different Addon Folder", question, "Upload"))
             {
                 await PublishAsync(options with { AllowSourceFolderChange = true });
             }
@@ -496,7 +496,7 @@ public partial class SubmissionView : UserControl
 
     private async void OnCancel(object? sender, RoutedEventArgs e)
     {
-        if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Leave Submission", "Leave without submitting?\n\nWhat you entered here will be lost."))
+        if (await MessageDialog.AskAsync(OwnerWindow, MessageKind.Warning, "Leave Submission", "Leave without submitting?\n\nWhat you entered here will be lost.", "Leave"))
         {
             Finish(null);
         }

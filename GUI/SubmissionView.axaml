@@ -7,7 +7,7 @@
              x:Class="GUI.SubmissionView">
     <UserControl.Styles>
         <Style Selector="TextBlock.label">
-            <Setter Property="Foreground" Value="{DynamicResource RadGenContrastBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ContrastBrush}" />
             <Setter Property="Margin" Value="0,0,12,12" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -34,7 +34,7 @@
                     <TextBlock Text="Back" />
                 </StackPanel>
             </Button>
-            <TextBlock Name="Heading" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource RadGenContrastBrush}" />
+            <TextBlock Name="Heading" Margin="16,0,0,0" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
         </DockPanel>
 
         <!-- progress and the outcome, with the workshop manager's buttons -->
@@ -43,7 +43,7 @@
                 <Button Name="CancelButton" Content="Cancel" MinWidth="80" Click="OnCancel" />
                 <Button Name="SubmitButton" Content="Submit" MinWidth="80" Click="OnSubmit" />
             </StackPanel>
-            <TextBlock Name="Status" DockPanel.Dock="Left" Width="320" Margin="4,0" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastBrush}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Name="Status" DockPanel.Dock="Left" Width="320" Margin="4,0" VerticalAlignment="Center" Foreground="{DynamicResource ContrastBrush}" TextTrimming="CharacterEllipsis" />
             <!-- the status keeps a fixed width so the bar does not change size as the text does -->
             <ProgressBar Name="UploadProgress" Margin="16,0" Minimum="0" Maximum="1" IsVisible="False" VerticalAlignment="Center" />
         </DockPanel>
@@ -55,17 +55,17 @@
                     <Button Content="Browse..." MinWidth="80" Click="OnBrowse" />
                     <Button Content="Clear" MinWidth="80" Click="OnClearPreview" />
                 </StackPanel>
-                <TextBlock Name="PreviewPath" DockPanel.Dock="Bottom" Margin="0,8,0,0" IsVisible="False" Foreground="{DynamicResource RadGenContrastSoftBrush}" TextTrimming="CharacterEllipsis" />
-                <Border Name="PreviewDrop" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" DragDrop.AllowDrop="True">
+                <TextBlock Name="PreviewPath" DockPanel.Dock="Bottom" Margin="0,8,0,0" IsVisible="False" Foreground="{DynamicResource ContrastSoftBrush}" TextTrimming="CharacterEllipsis" />
+                <Border Name="PreviewDrop" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" DragDrop.AllowDrop="True">
                     <Panel Margin="12">
-                        <TextBlock Name="PreviewHint" Text="Drag an image here or click Browse" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
+                        <TextBlock Name="PreviewHint" Text="Drag an image here or click Browse" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
                         <local:PreviewImage Name="Preview" />
                     </Panel>
                 </Border>
             </DockPanel>
 
             <!-- the submission's info, the description takes whatever height is left -->
-            <Border Grid.Column="2" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="16">
+            <Border Grid.Column="2" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="16">
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
                     <TextBlock Name="ChangeNoteLabel" Classes="label top" Text="Change Log:" />
                     <TextBox Name="ChangeNoteBox" Grid.Column="1" Margin="0,0,0,12" Height="90" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Type your update notes for this change here" />
@@ -97,7 +97,7 @@
                         </DockPanel>
                         <Panel>
                             <TextBox Name="DescriptionBox" MinHeight="120" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" />
-                            <ScrollViewer Name="DescriptionPreview" IsVisible="False" Background="{DynamicResource RadGenFieldBrush}" Padding="12,10" TextElement.Foreground="{DynamicResource RadGenContrastSoftBrush}">
+                            <ScrollViewer Name="DescriptionPreview" IsVisible="False" Background="{DynamicResource FieldBrush}" Padding="12,10" TextElement.Foreground="{DynamicResource ContrastSoftBrush}">
                                 <local:BbCodeView Name="DescriptionRendered" />
                             </ScrollViewer>
                         </Panel>
@@ -108,7 +108,7 @@
                         <ComboBox Name="AddonBox" HorizontalAlignment="Stretch" SelectionChanged="OnAddonChanged" />
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="Files..." VerticalAlignment="Top" Margin="8,0,0,0" Click="OnFiles" />
-                            <local:ContentsBar Name="Contents" Height="44" Foreground="{DynamicResource RadGenContrastBrush}" />
+                            <local:ContentsBar Name="Contents" Height="44" Foreground="{DynamicResource ContrastBrush}" />
                         </DockPanel>
                     </StackPanel>
 

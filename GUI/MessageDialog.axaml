@@ -6,12 +6,10 @@
         SizeToContent="WidthAndHeight"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource RadGenAppBrush}">
+        Background="{DynamicResource AppBrush}">
     <Panel>
-        <!-- the main window's gradient in the colour of the news: the accent for information, amber for warnings, red for destructive questions -->
-        <local:DitheredGradient Name="InfoGradient" CenterColor="{DynamicResource RadGenAppAccentColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="105%,-1%" />
-        <local:DitheredGradient Name="WarningGradient" IsVisible="False" CenterColor="{DynamicResource RadGenAppWarningColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="105%,-1%" />
-        <local:DitheredGradient Name="DangerGradient" IsVisible="False" CenterColor="{DynamicResource RadGenAppDangerColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="105%,-1%" />
+        <!-- the main window's gradient in the colour of the news, which the window's accent sets -->
+        <local:DitheredGradient CenterColor="{DynamicResource AppAccentColor}" EdgeColor="{DynamicResource AppColor}" GradientOrigin="105%,-1%" />
 
         <StackPanel Margin="20" Spacing="16" MaxWidth="540">
             <StackPanel Orientation="Horizontal" Spacing="16">
@@ -19,9 +17,9 @@
                 <TextBlock Name="Message" TextWrapping="Wrap" MaxWidth="440" VerticalAlignment="Center" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                <Button Name="YesButton" Content="Yes" MinWidth="80" Click="OnYes" />
-                <Button Name="NoButton" Content="No" MinWidth="80" Click="OnNo" />
-                <Button Name="OkButton" Content="OK" MinWidth="80" Click="OnYes" />
+                <Button Name="ConfirmButton" Classes="accent" MinWidth="80" Click="OnConfirm" />
+                <Button Name="CancelButton" MinWidth="80" Click="OnCancel" />
+                <Button Name="OkButton" Content="OK" Classes="accent" MinWidth="80" Click="OnConfirm" />
             </StackPanel>
         </StackPanel>
     </Panel>

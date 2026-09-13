@@ -218,7 +218,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!await MessageDialog.AskAsync(this, MessageKind.Danger, "Delete Submission", DeleteConfirmation))
+        if (!await MessageDialog.AskAsync(this, MessageKind.Danger, "Delete Submission", DeleteConfirmation, "Delete"))
         {
             return;
         }
