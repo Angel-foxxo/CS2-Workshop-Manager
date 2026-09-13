@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using CS2WorkshopManager;
+using Steamworks;
 
 namespace GUI;
 
@@ -475,6 +476,11 @@ public partial class SubmissionView : UserControl
             {
                 await PublishAsync(options with { AllowSourceFolderChange = true });
             }
+        }
+        catch (SteamUnavailableException exception)
+        {
+            Status.Text = string.Empty;
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Steam Not Running", exception.Message);
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or InvalidDataException or ArgumentException)
         {

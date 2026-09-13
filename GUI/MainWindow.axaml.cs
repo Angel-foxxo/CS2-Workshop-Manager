@@ -10,6 +10,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using CS2WorkshopManager;
+using Steamworks;
 
 namespace GUI;
 
@@ -232,6 +233,10 @@ public partial class MainWindow : Window
             rows.Remove(row);
             Status.Text = $"Deleted {row.Title}, {rows.Count} published items";
         }
+        catch (SteamUnavailableException exception)
+        {
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Steam Not Running", exception.Message);
+        }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
             await MessageDialog.ShowAsync(this, MessageKind.Warning, "Delete Submission", exception.Message);
@@ -280,6 +285,12 @@ public partial class MainWindow : Window
 
                 thumbnails.Add(LoadThumbnailAsync(row));
             }
+        }
+        catch (SteamUnavailableException exception)
+        {
+            // the empty list says why until a refresh gets through
+            Status.Text = "Steam is not running, start it and refresh";
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Steam Not Running", exception.Message);
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {

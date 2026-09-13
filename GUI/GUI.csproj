@@ -33,6 +33,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CS2WorkshopManager\CS2WorkshopManager.csproj" />
+    <!-- the library keeps Steamworks to itself for its package, so the Steam errors it throws are referenced directly -->
+    <ProjectReference Include="..\Steamworks\Steamworks.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- the window icon, the exe icon above is only used by Windows -->

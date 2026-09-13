@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -6,6 +7,16 @@ using System.Threading.Tasks;
 using Microsoft.Win32;
 
 namespace Steamworks;
+
+/// <summary>
+/// Steam can not be talked to: it is not running, still starting up, or nobody is logged in. The message says which and what to do.
+/// </summary>
+public sealed class SteamUnavailableException : InvalidOperationException
+{
+    public SteamUnavailableException() { }
+    public SteamUnavailableException(string message) : base(message) { }
+    public SteamUnavailableException(string message, Exception innerException) : base(message, innerException) { }
+}
 
 /// <summary>
 /// A pipe to the running Steam client. This is the part of steam_api that is needed to make Steam calls:
@@ -57,7 +68,16 @@ public sealed class SteamClient : IDisposable
 
         try
         {
-            library = NativeLibrary.Load(GetSteamClientPath());
+            var path = GetSteamClientPath();
+
+            try
+            {
+                library = NativeLibrary.Load(path);
+            }
+            catch (Exception exception) when (exception is DllNotFoundException or BadImageFormatException)
+            {
+                throw new InvalidOperationException($"Steam's client library could not be loaded from \"{path}\". Reinstalling Steam replaces it.", exception);
+            }
 
             var createInterface = (delegate* unmanaged<byte*, int*, void*>)NativeLibrary.GetExport(library, "CreateInterface");
             getCallback = (delegate* unmanaged<int, CallbackMessage*, int*, byte>)NativeLibrary.GetExport(library, "Steam_BGetCallback");
@@ -76,16 +96,19 @@ public sealed class SteamClient : IDisposable
 
             pipe = ((delegate* unmanaged<void*, int>)VTable(client)[CreateSteamPipeSlot])((void*)client);
 
+            // the library is left behind when Steam exits, so it is the pipe that tells whether Steam is up
             if (pipe == 0)
             {
-                throw new InvalidOperationException("Failed to create a pipe to the Steam client.");
+                throw new SteamUnavailableException(IsSteamProcessRunning()
+                    ? "Steam is running but did not accept a connection, it may still be starting up. Try again in a moment."
+                    : NotRunningMessage);
             }
 
             user = ((delegate* unmanaged<void*, int, int>)VTable(client)[ConnectToGlobalUserSlot])((void*)client, pipe);
 
             if (user == 0)
             {
-                throw new InvalidOperationException("No user is logged into Steam.");
+                throw new SteamUnavailableException("Nobody is logged into Steam. Log in, then try again.");
             }
 
             User = new SteamUser(GetInterface(SteamUser.InterfaceVersion));
@@ -198,6 +221,21 @@ public sealed class SteamClient : IDisposable
         }
     }
 
+    private const string NotRunningMessage = "Steam is not running. Start Steam and log in, then try again.";
+
+    /// <summary>Whether a Steam client process exists, which does not yet mean it is ready to talk.</summary>
+    private static bool IsSteamProcessRunning()
+    {
+        var processes = Process.GetProcessesByName("steam");
+
+        foreach (var process in processes)
+        {
+            process.Dispose();
+        }
+
+        return processes.Length > 0;
+    }
+
     /// <summary>
     /// Where steam_api loads the client library from on each platform.
     /// </summary>
@@ -215,7 +253,8 @@ public sealed class SteamClient : IDisposable
             path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "sdk64", "steamclient.so");
         }
 
-        return path != null && File.Exists(path) ? path : throw new InvalidOperationException("Steam is not running.");
+        // the path is only written once Steam has run, so without it Steam is either not installed or has never been started
+        return path != null && File.Exists(path) ? path : throw new SteamUnavailableException(NotRunningMessage);
     }
 
     internal static unsafe void** VTable(nint instance)
