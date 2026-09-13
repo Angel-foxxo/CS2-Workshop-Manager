@@ -171,7 +171,8 @@ public partial class SubmissionView : UserControl
 
         if (item != null)
         {
-            for (var index = 0; index < item.Previews.Count; index++)
+            // videos first, the way the workshop page shows the gallery, then the rest in their order
+            foreach (var index in Enumerable.Range(0, item.Previews.Count).OrderBy(index => item.Previews[index].Kind != WorkshopPreviewKind.YouTubeVideo))
             {
                 var preview = item.Previews[index];
                 var entry = new GalleryEntry
@@ -480,7 +481,8 @@ public partial class SubmissionView : UserControl
 
         var entry = new GalleryEntry { Kind = "YouTube video", Caption = videoId, VideoId = videoId, IsVideo = true };
 
-        gallery.Add(entry);
+        // after the other videos, ahead of every picture
+        gallery.Insert(gallery.Count(existing => existing.IsVideo), entry);
 
         await LoadGalleryImageAsync(entry, new Uri($"https://img.youtube.com/vi/{videoId}/hqdefault.jpg"));
     }
@@ -488,7 +490,7 @@ public partial class SubmissionView : UserControl
     /// <summary>Takes hold of a tile. The gallery keeps the pointer rather than the tile, since a reshuffle can replace the tile's control under it.</summary>
     private void OnTilePressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Border tile || tile.DataContext is not GalleryEntry entry || !e.GetCurrentPoint(tile).Properties.IsLeftButtonPressed || Gallery.ContainerFromItem(entry) is not Control container)
+        if (sender is not Border tile || tile.DataContext is not GalleryEntry { IsVideo: false } entry || !e.GetCurrentPoint(tile).Properties.IsLeftButtonPressed || Gallery.ContainerFromItem(entry) is not Control container)
         {
             return;
         }
@@ -514,7 +516,7 @@ public partial class SubmissionView : UserControl
 
         foreach (var container in Gallery.GetRealizedContainers())
         {
-            if (container.DataContext is GalleryEntry target && target != draggedEntry && container.Bounds.Contains(point))
+            if (container.DataContext is GalleryEntry { IsVideo: false } target && target != draggedEntry && container.Bounds.Contains(point))
             {
                 gallery.Move(gallery.IndexOf(draggedEntry), gallery.IndexOf(target));
                 panel.UpdateLayout();
@@ -739,18 +741,36 @@ public partial class SubmissionView : UserControl
         }
     }
 
-    /// <summary>The gallery as shown, for publishing, or null when it is the item's gallery untouched, which the info edit's checks rely on.</summary>
+    /// <summary>
+    /// The gallery as shown, for publishing, or null when it is the item's gallery untouched, which the info edit's checks rely on.
+    /// The pictures go in the order shown. The item's videos keep the slots they had, since the workshop page puts videos first whatever their slot,
+    /// and moving them would only make pictures be sent again. New videos go at the end.
+    /// </summary>
     private GalleryUpdate? BuildGallery()
     {
         var current = item?.Previews ?? [];
-        var untouched = gallery.Count == current.Count && gallery.Select((entry, position) => entry.Index == position).All(same => same);
+        var pictures = gallery.Where(entry => !entry.IsVideo).ToList();
+        var videos = gallery.Where(entry => entry.IsVideo && entry.Index != null).OrderBy(entry => entry.Index).ToList();
+        var ordered = new List<GalleryEntry>();
+
+        while (pictures.Count + videos.Count > 0)
+        {
+            var video = videos.Count > 0 && (videos[0].Index == ordered.Count || pictures.Count == 0);
+
+            ordered.Add(video ? videos[0] : pictures[0]);
+            (video ? videos : pictures).RemoveAt(0);
+        }
+
+        ordered.AddRange(gallery.Where(entry => entry.IsVideo && entry.Index == null));
+
+        var untouched = ordered.Count == current.Count && ordered.Select((entry, position) => entry.Index == position).All(same => same);
 
         if (untouched)
         {
             return null;
         }
 
-        var wanted = gallery.Select(entry => entry.Index is int index ? PreviewSource.Existing(index) : entry.Path != null ? PreviewSource.Screenshot(entry.Path) : PreviewSource.Video(entry.VideoId!)).ToList();
+        var wanted = ordered.Select(entry => entry.Index is int index ? PreviewSource.Existing(index) : entry.Path != null ? PreviewSource.Screenshot(entry.Path) : PreviewSource.Video(entry.VideoId!)).ToList();
 
         return new GalleryUpdate(current, wanted);
     }
