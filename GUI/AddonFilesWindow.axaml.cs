@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using CS2WorkshopManager;
 
@@ -16,35 +17,87 @@ public sealed record RuleRow(AddonRules.Rule Rule)
     public string Pattern => Rule.Pattern;
 }
 
-/// <summary>A file under the addon and whether the upload takes it, which a rescan updates in place so the list keeps its rows and its scroll.</summary>
-public sealed class FileRow(string relativePath, long size, bool packed) : INotifyPropertyChanged
+/// <summary>
+/// A file or folder under the addon as the tree shows it. A folder's tick is that of the files under it, all, none or some,
+/// and a rescan updates the ticks in place so the tree keeps its nodes and what is expanded.
+/// </summary>
+public sealed class FileNode(string relativePath, bool isFolder) : INotifyPropertyChanged
 {
-    private bool packed = packed;
+    private bool? packed;
+    private long size;
+    private bool isExpanded;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>The path under the addon, forward slashes and no trailing slash.</summary>
     public string RelativePath { get; } = relativePath;
 
-    public long Size { get; } = size;
+    public string Name { get; } = Path.GetFileName(relativePath);
+
+    public bool IsFolder { get; } = isFolder;
+
+    /// <summary>A folder's folders first and then its files, the largest first.</summary>
+    public List<FileNode> Children { get; } = [];
+
+    /// <summary>What a rule for this node matches: a folder's path ends in a slash so it only matches what is under it.</summary>
+    public string Pattern => IsFolder ? RelativePath + "/" : RelativePath;
+
+    public long Size
+    {
+        get => size;
+        set => Set(ref size, value, nameof(Size), nameof(SizeText));
+    }
 
     public string SizeText => AddonContents.FormatSize(Size);
 
-    public bool Packed
+    /// <summary>Whether the upload takes it, or null for a folder it takes only some of.</summary>
+    public bool? Packed
     {
         get => packed;
-        set
+        set => Set(ref packed, value, nameof(Packed));
+    }
+
+    public bool IsExpanded
+    {
+        get => isExpanded;
+        set => Set(ref isExpanded, value, nameof(IsExpanded));
+    }
+
+    /// <summary>Works out a folder's size and tick from what is under it, all the way down.</summary>
+    public void Refresh()
+    {
+        if (!IsFolder)
         {
-            if (packed != value)
-            {
-                packed = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Packed)));
-            }
+            return;
+        }
+
+        foreach (var child in Children)
+        {
+            child.Refresh();
+        }
+
+        Size = Children.Sum(child => child.Size);
+        Packed = Children.All(child => child.Packed == true) ? true : Children.All(child => child.Packed == false) ? false : null;
+    }
+
+    private void Set<T>(ref T field, T value, params string[] names)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+
+        foreach (var name in names)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
     }
 }
 
 /// <summary>
-/// What an addon uploads: its asset types, every file under it, and the user's own include and exclude rules, which are changed here and saved as they change.
+/// What an addon uploads: its asset types, every folder and file under it, and the user's own include and exclude rules, which are changed here and saved as they change.
 /// </summary>
 public partial class AddonFilesWindow : Window
 {
@@ -53,8 +106,14 @@ public partial class AddonFilesWindow : Window
     private AddonRules rules = new();
     private string? addon;
 
-    /// <summary>Every file under the addon, which the search narrows down for the list.</summary>
-    private List<FileRow> files = [];
+    /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
+    private List<FileNode> files = [];
+
+    /// <summary>The whole addon as a tree.</summary>
+    private List<FileNode> tree = [];
+
+    /// <summary>What the tree shows: the whole addon, or only what the search found.</summary>
+    private List<FileNode> shown = [];
 
     /// <summary>Whether a change is still being saved and scanned, during which what is shown is about to change.</summary>
     private bool changing;
@@ -97,10 +156,10 @@ public partial class AddonFilesWindow : Window
         if (AddonBox.SelectedItem is not string name)
         {
             addon = null;
-            files = [];
+            files = tree = shown = [];
             Contents.Contents = null;
             RulesList.ItemsSource = null;
-            FilesList.ItemsSource = null;
+            FilesTree.ItemsSource = null;
             return;
         }
 
@@ -126,7 +185,7 @@ public partial class AddonFilesWindow : Window
                 var packedPaths = packedFiles.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var every = AddonPackager.ListFiles(addonPath)
                     .Select(file => (Path: AddonPackager.GetRelativePath(addonPath, file.FullName), file.Length, Packed: packedPaths.Contains(file.FullName)))
-                    .OrderByDescending(entry => entry.Length).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 return (packedFiles, every);
@@ -141,17 +200,41 @@ public partial class AddonFilesWindow : Window
             Contents.Contents = AddonContents.FromFiles(packed);
             RulesList.ItemsSource = rules.Rules.Select(rule => new RuleRow(rule)).ToList();
 
-            // the same files as before only change their ticks, so the list keeps its rows and its scroll
-            if (files.Count == all.Count && files.Zip(all).All(pair => pair.First.RelativePath == pair.Second.Path && pair.First.Size == pair.Second.Length))
+            // the same files as before only change their ticks and sizes, which the game rewrites as it runs, so the tree keeps its nodes, its scroll and what is expanded
+            if (files.Count == all.Count && files.Zip(all).All(pair => pair.First.RelativePath == pair.Second.Path))
             {
-                foreach (var (row, entry) in files.Zip(all))
+                foreach (var (node, entry) in files.Zip(all))
                 {
-                    row.Packed = entry.Packed;
+                    node.Size = entry.Length;
+                    node.Packed = entry.Packed;
+                }
+
+                foreach (var root in tree)
+                {
+                    root.Refresh();
+                }
+
+                if (shown != tree)
+                {
+                    foreach (var root in shown)
+                    {
+                        root.Refresh();
+                    }
                 }
             }
             else
             {
-                files = all.Select(entry => new FileRow(entry.Path, entry.Length, entry.Packed)).ToList();
+                // files came or went, so the tree is built again, with the folders that were open still open
+                var expanded = Folders(tree).Where(folder => folder.IsExpanded).Select(folder => folder.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                files = all.Select(entry => new FileNode(entry.Path, false) { Size = entry.Length, Packed = entry.Packed }).ToList();
+                tree = BuildTree(files);
+
+                foreach (var folder in Folders(tree))
+                {
+                    folder.IsExpanded = expanded.Contains(folder.RelativePath);
+                }
+
                 ShowFiles();
             }
 
@@ -164,17 +247,108 @@ public partial class AddonFilesWindow : Window
         }
     }
 
+    /// <summary>
+    /// The folders and files as a tree with <paramref name="files"/> as its leaves, at every level the folders first and then the files, the largest first.
+    /// </summary>
+    private static List<FileNode> BuildTree(IEnumerable<FileNode> files)
+    {
+        var root = new FileNode(string.Empty, true);
+        var folders = new Dictionary<string, FileNode>(StringComparer.OrdinalIgnoreCase) { [string.Empty] = root };
+
+        foreach (var file in files)
+        {
+            Folder(Parent(file.RelativePath)).Children.Add(file);
+        }
+
+        root.Refresh();
+        Sort(root);
+
+        return root.Children;
+
+        FileNode Folder(string path)
+        {
+            if (!folders.TryGetValue(path, out var folder))
+            {
+                folder = new FileNode(path, true);
+                folders[path] = folder;
+                Folder(Parent(path)).Children.Add(folder);
+            }
+
+            return folder;
+        }
+
+        static string Parent(string path)
+        {
+            var slash = path.LastIndexOf('/');
+
+            return slash < 0 ? string.Empty : path[..slash];
+        }
+
+        static void Sort(FileNode folder)
+        {
+            folder.Children.Sort((a, b) =>
+            {
+                var order = b.IsFolder.CompareTo(a.IsFolder);
+
+                if (order == 0)
+                {
+                    order = b.Size.CompareTo(a.Size);
+                }
+
+                return order == 0 ? string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase) : order;
+            });
+
+            foreach (var child in folder.Children)
+            {
+                Sort(child);
+            }
+        }
+    }
+
+    /// <summary>Every folder in the tree, at every level.</summary>
+    private static IEnumerable<FileNode> Folders(List<FileNode> nodes)
+    {
+        foreach (var node in nodes.Where(node => node.IsFolder))
+        {
+            yield return node;
+
+            foreach (var folder in Folders(node.Children))
+            {
+                yield return folder;
+            }
+        }
+    }
+
     private void OnSearchChanged(object? sender, TextChangedEventArgs e)
     {
         ShowFiles();
     }
 
-    /// <summary>The files whose path contains what was searched for, or all of them.</summary>
+    /// <summary>Shows the whole tree, or with something searched for only the files whose path contains it, in their folders opened up.</summary>
     private void ShowFiles()
     {
         var search = SearchBox.Text?.Trim() ?? string.Empty;
 
-        FilesList.ItemsSource = search.Length == 0 ? files : files.Where(file => file.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (search.Length == 0)
+        {
+            shown = tree;
+        }
+        else
+        {
+            shown = BuildTree(files.Where(file => file.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
+            Expand(shown);
+        }
+
+        FilesTree.ItemsSource = shown;
+
+        static void Expand(List<FileNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                node.IsExpanded = true;
+                Expand(node.Children);
+            }
+        }
     }
 
     /// <summary>Applies a change to the rules, saves them and scans again, or says why it could not save.</summary>
@@ -203,21 +377,6 @@ public partial class AddonFilesWindow : Window
         }
     }
 
-    private async void OnAddRule(object? sender, RoutedEventArgs e)
-    {
-        var pattern = AddonRules.Normalize(RulePattern.Text ?? string.Empty);
-
-        if (pattern.Length == 0)
-        {
-            return;
-        }
-
-        var exclude = (string?)((Button)sender!).Tag == "exclude";
-        RulePattern.Text = string.Empty;
-
-        await ChangeRulesAsync(current => current.Add(new AddonRules.Rule(exclude, pattern)));
-    }
-
     private async void OnRemoveRule(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.DataContext is RuleRow row)
@@ -226,20 +385,29 @@ public partial class AddonFilesWindow : Window
         }
     }
 
-    /// <summary>
-    /// A tick undoes the user's own rule for that file when there is one. Otherwise unticking keeps the file out by its path, and ticking brings it in by its path ahead of whatever else keeps it out.
-    /// </summary>
-    private async void OnFileClick(object? sender, RoutedEventArgs e)
+    /// <summary>Two quick ticks are two ticks, not the double click that folds a folder.</summary>
+    private void OnNodeDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if ((sender as CheckBox)?.DataContext is not FileRow file)
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// A tick undoes the user's own rule for that file or folder when there is one. Otherwise unticking keeps it out by its path,
+    /// and ticking, which for a folder with only some of its files in brings in the rest, brings it in ahead of whatever else keeps it out.
+    /// </summary>
+    private async void OnNodeClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as CheckBox)?.DataContext is not FileNode node)
         {
             return;
         }
 
+        var bringIn = node.Packed != true;
+
         await ChangeRulesAsync(current =>
         {
-            // a rule the user made for this very file, in the direction being undone
-            var removed = current.Rules.RemoveAll(rule => rule.Exclude != file.Packed && rule.Pattern.Equals(file.RelativePath, StringComparison.OrdinalIgnoreCase));
+            // a rule the user made for this very path, in the direction being undone
+            var removed = current.Rules.RemoveAll(rule => rule.Exclude == bringIn && rule.Pattern.Equals(node.Pattern, StringComparison.OrdinalIgnoreCase));
 
             if (removed > 0)
             {
@@ -247,14 +415,7 @@ public partial class AddonFilesWindow : Window
             }
 
             // the newest rule goes first, since the first matching rule wins, so it beats whatever else the user has
-            if (file.Packed)
-            {
-                current.Rules.Insert(0, new AddonRules.Rule(true, file.RelativePath));
-            }
-            else
-            {
-                current.Rules.Insert(0, new AddonRules.Rule(false, file.RelativePath));
-            }
+            current.Rules.Insert(0, new AddonRules.Rule(!bringIn, node.Pattern));
         });
     }
 }

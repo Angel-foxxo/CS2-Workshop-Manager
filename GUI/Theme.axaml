@@ -59,6 +59,7 @@
     <SolidColorBrush x:Key="PopupBrush" Color="{DynamicResource PopupColor}" />
     <SolidColorBrush x:Key="OutlineBrush" Color="{DynamicResource OutlineColor}" />
     <SolidColorBrush x:Key="HeadingBrush" Color="{DynamicResource HeadingColor}" />
+    <SolidColorBrush x:Key="TransparentBrush" Color="Transparent" />
 
 
     <!-- windows: main colour with contrast text -->
@@ -126,6 +127,16 @@
     <StaticResource x:Key="ScrollBarThumbFillPressed" ResourceKey="AccentBrush" />
     <StaticResource x:Key="ProgressBarBackground" ResourceKey="FieldBrush" />
     <StaticResource x:Key="ProgressBarForeground" ResourceKey="AccentBrush" />
+
+    <!-- tree rows: a tinted face under the pointer and no colour for being selected, since the trees here are ticked rather than selected -->
+    <StaticResource x:Key="TreeViewItemBackgroundPointerOver" ResourceKey="ControlBrush" />
+    <StaticResource x:Key="TreeViewItemBackgroundPressed" ResourceKey="ControlBrush" />
+    <StaticResource x:Key="TreeViewItemBackgroundSelected" ResourceKey="TransparentBrush" />
+    <StaticResource x:Key="TreeViewItemBackgroundSelectedPointerOver" ResourceKey="ControlBrush" />
+    <StaticResource x:Key="TreeViewItemBackgroundSelectedPressed" ResourceKey="ControlBrush" />
+    <StaticResource x:Key="TreeViewItemForegroundSelected" ResourceKey="ContrastBrush" />
+    <StaticResource x:Key="TreeViewItemForegroundSelectedPointerOver" ResourceKey="ContrastBrush" />
+    <StaticResource x:Key="TreeViewItemForegroundSelectedPressed" ResourceKey="ContrastBrush" />
 
     <!-- data grid: soft main colour panel, faded soft contrast grid lines, accent selection -->
     <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="{DynamicResource ShadeColor}" Opacity="0.1" />

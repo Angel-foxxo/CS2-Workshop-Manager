@@ -8,12 +8,17 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBrush}"
         local:WindowAccent.Color="{DynamicResource AccentColor}">
+    <Window.Resources>
+        <!-- tree rows are many, so they sit tight -->
+        <x:Double x:Key="TreeViewItemMinHeight">24</x:Double>
+        <!-- a folder and a page, drawn the same size -->
+        <StreamGeometry x:Key="FolderIcon">M1 3.5A1.5 1.5 0 0 1 2.5 2h3.3a1.5 1.5 0 0 1 1.06.44L8 3.5h5.5A1.5 1.5 0 0 1 15 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9Z</StreamGeometry>
+        <StreamGeometry x:Key="FileIcon">M4 1h5.5L13 4.5V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Zm5.5 1v2.5H12L9.5 2Z</StreamGeometry>
+    </Window.Resources>
     <Window.Styles>
-        <!-- file rows are many, so they sit tight -->
-        <Style Selector="ItemsControl#FilesList CheckBox">
-            <Setter Property="Margin" Value="0,1" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Padding" Value="6,2" />
+        <!-- what is expanded belongs to the node, so it survives the tree being shown again -->
+        <Style Selector="TreeView#FilesTree TreeViewItem" x:DataType="local:FileNode">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
         </Style>
     </Window.Styles>
 
@@ -36,13 +41,6 @@
                 <Border Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
-                        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
-                                <Button Content="Exclude" MinWidth="80" Tag="exclude" Click="OnAddRule" />
-                                <Button Content="Include" MinWidth="80" Tag="include" Click="OnAddRule" />
-                            </StackPanel>
-                            <TextBox Name="RulePattern" PlaceholderText="materials/dev/" />
-                        </DockPanel>
                         <ScrollViewer>
                             <ItemsControl Name="RulesList">
                                 <ItemsControl.ItemTemplate>
@@ -59,32 +57,26 @@
                     </DockPanel>
                 </Border>
 
-                <!-- every file under the addon, ticked when the upload takes it -->
+                <!-- every folder and file under the addon, ticked when the upload takes it -->
                 <Border Grid.Column="2" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
                         <TextBlock DockPanel.Dock="Top" Margin="0,4,0,8" TextWrapping="Wrap" Foreground="{DynamicResource ContrastSoftBrush}"
-                                   Text="Every file in the addon, files ticked by default are packed by gameinfo.gi. &#10;&#10;Untick a file to keep it out, or tick a file that is kept out to bring it in, custom packing rules are saved in publish_rules.txt in the addon's content root." />
+                                   Text="Every file in the addon, files ticked by default are packed by gameinfo.gi. A folder is ticked when all of its files are, and half ticked when some are. &#10;&#10;Untick a file or folder to keep it out, or tick one that is kept out to bring it in, custom packing rules are saved in publish_rules.txt in the addon's content root." />
                         <TextBox Name="SearchBox" DockPanel.Dock="Top" Margin="0,0,0,8" PlaceholderText="Search files" TextChanged="OnSearchChanged" />
-                        <ScrollViewer>
-                            <ItemsControl Name="FilesList">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <VirtualizingStackPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:FileRow">
-                                        <CheckBox IsChecked="{Binding Packed, Mode=OneWay}" Click="OnFileClick" HorizontalAlignment="Stretch">
-                                            <DockPanel>
-                                                <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Margin="12,0,0,0" Foreground="{DynamicResource ContrastSoftBrush}" />
-                                                <TextBlock Text="{Binding RelativePath}" TextTrimming="CharacterEllipsis" />
-                                            </DockPanel>
-                                        </CheckBox>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                        <TreeView Name="FilesTree" Background="Transparent" BorderThickness="0">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="local:FileNode" ItemsSource="{Binding Children}">
+                                    <DockPanel>
+                                        <CheckBox IsChecked="{Binding Packed, Mode=OneWay}" IsThreeState="{Binding IsFolder}" Click="OnNodeClick" DoubleTapped="OnNodeDoubleTapped" MinHeight="0" Padding="0" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Margin="12,0,16,0" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                        <Path IsVisible="{Binding IsFolder}" Data="{StaticResource FolderIcon}" Fill="{DynamicResource HeadingBrush}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <Path IsVisible="{Binding !IsFolder}" Data="{StaticResource FileIcon}" Fill="{DynamicResource ContrastSoftBrush}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
                     </DockPanel>
                 </Border>
             </Grid>

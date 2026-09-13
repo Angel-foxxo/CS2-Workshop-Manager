@@ -21,8 +21,8 @@
             <Setter Property="Cursor" Value="Arrow" />
         </Style>
 
-        <!-- Fluent leaves what a button shows at its left, and buttons here have a set width to line up -->
-        <Style Selector=":is(Button)">
+        <!-- Fluent leaves what a button shows at its left, and buttons here have a set width to line up. Check boxes are buttons too, and keep their text beside the box -->
+        <Style Selector="Button, ToggleButton, DropDownButton">
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
 
