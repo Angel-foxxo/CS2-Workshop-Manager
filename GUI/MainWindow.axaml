@@ -152,6 +152,7 @@
                     </StackPanel>
                 </ToggleButton>
             </StackPanel>
+            <TextBox Name="SearchBox" DockPanel.Dock="Right" Width="260" Margin="12,0" VerticalAlignment="Center" PlaceholderText="Search submissions" TextChanged="OnSearchChanged" />
 
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <Button Classes="tool" Click="OnNew">
@@ -356,7 +357,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Dates" Width="210" MinWidth="160" SortMemberPath="LastUpdated">
+                <DataGridTemplateColumn Header="Dates" Width="240" MinWidth="180" SortMemberPath="LastUpdated">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="local:WorkshopItemRow">
                             <StackPanel Spacing="4" VerticalAlignment="Center">

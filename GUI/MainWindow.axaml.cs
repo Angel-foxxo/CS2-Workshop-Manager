@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -32,6 +33,9 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<WorkshopItemRow> rows = [];
 
+    /// <summary>The rows the search leaves, which is what both views show.</summary>
+    private readonly ObservableCollection<WorkshopItemRow> shown = [];
+
     /// <summary>The game install, found when the first publish form needs it.</summary>
     private WorkshopManager? manager;
 
@@ -39,8 +43,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        PublishedItems.ItemsSource = rows;
-        TileItems.ItemsSource = rows;
+        PublishedItems.ItemsSource = shown;
+        TileItems.ItemsSource = shown;
         Loaded += OnLoaded;
 
         // before the right click menu opens, the item under the pointer is the selected one
@@ -231,6 +235,7 @@ public partial class MainWindow : Window
             await WorkshopManager.DeleteItemAsync(row.PublishedFileId);
 
             rows.Remove(row);
+            shown.Remove(row);
             Status.Text = $"Deleted {row.Title}, {rows.Count} published items";
         }
         catch (SteamUnavailableException exception)
@@ -263,6 +268,36 @@ public partial class MainWindow : Window
         return null;
     }
 
+    /// <summary>Whether the search box lets a row through: its title, tags, description or workshop id contain the text, or there is no text.</summary>
+    private bool Matches(WorkshopItemRow row)
+    {
+        var search = SearchBox.Text?.Trim() ?? string.Empty;
+
+        return search.Length == 0
+            || row.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.Tags.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.PublishedFileId.ToString(CultureInfo.InvariantCulture).Contains(search, StringComparison.Ordinal);
+    }
+
+    private void OnSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        shown.Clear();
+
+        foreach (var row in rows.Where(Matches))
+        {
+            shown.Add(row);
+        }
+
+        ShowCount();
+    }
+
+    /// <summary>How many items there are, and how many the search leaves when it leaves fewer.</summary>
+    private void ShowCount()
+    {
+        Status.Text = shown.Count == rows.Count ? $"{rows.Count} published items" : $"{shown.Count} of {rows.Count} published items";
+    }
+
     /// <summary>
     /// Replaces the list with the account's published items as Steam returns them.
     /// </summary>
@@ -271,6 +306,7 @@ public partial class MainWindow : Window
         // a refresh while a load is still streaming in would add to a list that was just cleared
         RefreshButton.IsEnabled = false;
         rows.Clear();
+        shown.Clear();
 
         var thumbnails = new List<Task>();
 
@@ -281,7 +317,13 @@ public partial class MainWindow : Window
                 var row = new WorkshopItemRow(item);
 
                 rows.Add(row);
-                Status.Text = $"{rows.Count} published items";
+
+                if (Matches(row))
+                {
+                    shown.Add(row);
+                }
+
+                ShowCount();
 
                 thumbnails.Add(LoadThumbnailAsync(row));
             }
