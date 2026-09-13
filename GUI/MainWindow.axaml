@@ -8,6 +8,7 @@
         Title="CS2 Workshop Manager"
         Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
         Width="1600" Height="900"
+        MinWidth="960" MinHeight="540"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBrush}"
         local:WindowAccent.Color="{DynamicResource AccentColor}">
@@ -16,6 +17,8 @@
         <SolidColorBrush x:Key="PublicPillBrush" Color="{DynamicResource AccentColor}" Opacity="0.45" />
         <SolidColorBrush x:Key="UnlistedPillBrush" Color="{DynamicResource WarningAccentColor}" Opacity="0.35" />
         <SolidColorBrush x:Key="FriendsPillBrush" Color="{DynamicResource HeadingColor}" Opacity="0.35" />
+        <!-- on a selected row or tile the accent is the background, so pills switch to a tint of the text colour -->
+        <SolidColorBrush x:Key="SelectedPillBrush" Color="{DynamicResource ContrastColor}" Opacity="0.2" />
 
         <!-- the toolbar's actions on an item again, on a right click over one -->
         <ContextMenu x:Key="ItemMenu">
@@ -112,6 +115,9 @@
         <Style Selector="Border.pill.friends">
             <Setter Property="Background" Value="{DynamicResource FriendsPillBrush}" />
         </Style>
+        <Style Selector="DataGridRow:selected Border.pill, ListBox#TileItems ListBoxItem:selected Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SelectedPillBrush}" />
+        </Style>
 
         <!-- tiles are list items so one can be selected, shown by an accent halo in the tile margin -->
         <Style Selector="ListBox#TileItems ListBoxItem">
@@ -137,8 +143,9 @@
     <DockPanel Name="Main">
         <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="12,4,12,8" Foreground="{DynamicResource ContrastBrush}" />
 
-        <DockPanel DockPanel.Dock="Top" Margin="8,6">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+        <!-- the buttons, a spacer that gives way first, the search box and the view toggles -->
+        <Grid DockPanel.Dock="Top" Margin="8,6" ColumnDefinitions="Auto,*,Auto,Auto">
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
                 <ToggleButton Name="ListToggle" Classes="tool" IsChecked="True" Click="OnViewToggle">
                     <StackPanel>
                         <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/list.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
@@ -152,9 +159,9 @@
                     </StackPanel>
                 </ToggleButton>
             </StackPanel>
-            <TextBox Name="SearchBox" DockPanel.Dock="Right" Width="260" Margin="12,0" VerticalAlignment="Center" PlaceholderText="Search submissions" TextChanged="OnSearchChanged" />
+            <TextBox Name="SearchBox" Grid.Column="2" Width="260" Margin="12,0" VerticalAlignment="Center" PlaceholderText="Search submissions" TextChanged="OnSearchChanged" />
 
-            <StackPanel Orientation="Horizontal" Spacing="4">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
                 <Button Classes="tool" Click="OnNew">
                     <StackPanel>
                         <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/new.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
@@ -198,7 +205,7 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-        </DockPanel>
+        </Grid>
 
         <!-- the two views share the space left by the bars, only one is visible -->
         <Panel>
