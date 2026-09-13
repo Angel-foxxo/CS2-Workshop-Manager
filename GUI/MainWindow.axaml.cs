@@ -126,13 +126,8 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task OpenSubmissionAsync(SubmissionMode mode, WorkshopItemRow? row)
     {
-        try
+        if (await FindGameAsync() is not { } game)
         {
-            manager ??= WorkshopManager.FromSteamInstall();
-        }
-        catch (DirectoryNotFoundException exception)
-        {
-            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Game Not Found", exception.Message);
             return;
         }
 
@@ -143,7 +138,7 @@ public partial class MainWindow : Window
 
         try
         {
-            published = await Submission.ShowAsync(mode, manager, row);
+            published = await Submission.ShowAsync(mode, game, row, mode == SubmissionMode.Edit ? null : DefaultAddon(row));
         }
         finally
         {
@@ -166,6 +161,41 @@ public partial class MainWindow : Window
                 await MessageDialog.ShowAsync(this, MessageKind.Info, "Published", $"Published \"{published.Title}\" ({published.Result.PublishedFileId})");
             }
         }
+    }
+
+    /// <summary>The game install, found once, or null after telling the user it is not there.</summary>
+    private async Task<WorkshopManager?> FindGameAsync()
+    {
+        try
+        {
+            return manager ??= WorkshopManager.FromSteamInstall();
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Game Not Found", exception.Message);
+            return null;
+        }
+    }
+
+    /// <summary>The files and rules of any addon, starting from the selected item's.</summary>
+    private async void OnFiles(object? sender, RoutedEventArgs e)
+    {
+        if (await FindGameAsync() is { } game)
+        {
+            var selected = (Tiles.IsVisible ? TileItems.SelectedItem : PublishedItems.SelectedItem) as WorkshopItemRow;
+
+            await new AddonFilesWindow(game, DefaultAddon(selected)).ShowDialog(this);
+        }
+    }
+
+    /// <summary>
+    /// The addon to start from, like the workshop manager the one the tools have open. Without the tools it is the one <paramref name="row"/>'s item was last published from, or the last updated item's when there is no row.
+    /// </summary>
+    private string? DefaultAddon(WorkshopItemRow? row)
+    {
+        var item = row ?? rows.MaxBy(candidate => candidate.Item.TimeUpdated);
+
+        return WorkshopManager.GetRunningToolsAddon() ?? (item == null ? null : WorkshopManager.GetPublishedSourceFolder(item.Item.PublishedFileId));
     }
 
     private async void OnView(object? sender, RoutedEventArgs e)

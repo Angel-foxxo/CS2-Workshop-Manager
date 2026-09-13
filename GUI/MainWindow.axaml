@@ -156,6 +156,12 @@
                         <TextBlock Text="Refresh" />
                     </StackPanel>
                 </Button>
+                <Button Classes="tool" Click="OnFiles">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/filter.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Pack Filter" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </DockPanel>
 

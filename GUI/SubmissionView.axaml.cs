@@ -72,10 +72,10 @@ public partial class SubmissionView : UserControl
     }
 
     /// <summary>
-    /// Fills the form for a new submission or for <paramref name="row"/>'s item and waits until it is submitted or cancelled.
+    /// Fills the form for a new submission or for <paramref name="row"/>'s item, with <paramref name="addon"/> chosen, and waits until it is submitted or cancelled.
     /// </summary>
     /// <returns>What was published, or null when the form was cancelled.</returns>
-    public Task<PublishedSubmission?> ShowAsync(SubmissionMode mode, WorkshopManager manager, WorkshopItemRow? row)
+    public Task<PublishedSubmission?> ShowAsync(SubmissionMode mode, WorkshopManager manager, WorkshopItemRow? row, string? addon)
     {
         this.mode = mode;
         this.manager = manager;
@@ -115,11 +115,8 @@ public partial class SubmissionView : UserControl
             {
                 var addons = manager.GetAddonNames().Order(StringComparer.OrdinalIgnoreCase).ToList();
 
-                // the workshop manager starts from the addon the tools have open, a re-upload otherwise from the one the item was published from
-                var preset = WorkshopManager.GetRunningToolsAddon() ?? (item == null ? null : WorkshopManager.GetPublishedSourceFolder(item.PublishedFileId));
-
                 AddonBox.ItemsSource = addons;
-                AddonBox.SelectedItem = preset == null ? null : addons.Find(addon => addon.Equals(preset, StringComparison.OrdinalIgnoreCase));
+                AddonBox.SelectedItem = addon == null ? null : addons.Find(name => name.Equals(addon, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -197,6 +194,24 @@ public partial class SubmissionView : UserControl
 
     private async void OnAddonChanged(object? sender, SelectionChangedEventArgs e)
     {
+        await ScanAddonAsync();
+    }
+
+    /// <summary>Opens the addon's files and rules, and scans again afterwards since they may have changed.</summary>
+    private async void OnFiles(object? sender, RoutedEventArgs e)
+    {
+        if (manager == null)
+        {
+            return;
+        }
+
+        await new AddonFilesWindow(manager, AddonBox.SelectedItem as string).ShowDialog(OwnerWindow);
+        await ScanAddonAsync();
+    }
+
+    /// <summary>Scans what the chosen addon would upload, with the user's rules, and shows it in the graph.</summary>
+    private async Task ScanAddonAsync()
+    {
         contents = null;
         Contents.Contents = null;
 
@@ -212,7 +227,8 @@ public partial class SubmissionView : UserControl
 
         try
         {
-            var scanned = await Task.Run(() => AddonPackager.GetContents(addonPath, gameInfoPath));
+            var rules = manager.LoadRules(addon);
+            var scanned = await Task.Run(() => AddonPackager.GetContents(addonPath, gameInfoPath, rules));
 
             // the selection moved on while this folder was scanned
             if (!Equals(AddonBox.SelectedItem, addon))

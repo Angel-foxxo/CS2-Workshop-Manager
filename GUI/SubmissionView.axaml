@@ -106,7 +106,10 @@
                     <TextBlock Name="AddonLabel" Grid.Row="3" Classes="label top" Text="Addon Folder:" />
                     <StackPanel Name="AddonPanel" Grid.Row="3" Grid.Column="1" Margin="0,0,0,12" Spacing="8">
                         <ComboBox Name="AddonBox" HorizontalAlignment="Stretch" SelectionChanged="OnAddonChanged" />
-                        <local:ContentsBar Name="Contents" Height="44" Foreground="{DynamicResource RadGenContrastBrush}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Files..." VerticalAlignment="Top" Margin="8,0,0,0" Click="OnFiles" />
+                            <local:ContentsBar Name="Contents" Height="44" Foreground="{DynamicResource RadGenContrastBrush}" />
+                        </DockPanel>
                     </StackPanel>
 
                     <TextBlock Grid.Row="4" Classes="label" Text="Game Modes:" />

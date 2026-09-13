@@ -62,7 +62,7 @@ public static class AddonPackager
     /// Creates a staging folder where the packed addon is assembled, "vpks/{publishedFileId}" with "{publishedFileId}_dir.vpk", its chunks and publish_data.txt.
     /// </summary>
     /// <returns>The staging folder to hand to SetItemContent.</returns>
-    public static string Stage(string addonsRoot, string addonName, string gameInfoPath, ulong publishedFileId, string title, DateTimeOffset publishTime)
+    public static string Stage(string addonsRoot, string addonName, string gameInfoPath, ulong publishedFileId, string title, DateTimeOffset publishTime, AddonRules? rules = null)
     {
         var addonPath = Path.Combine(addonsRoot, addonName);
 
@@ -80,7 +80,7 @@ public static class AddonPackager
         }
         Directory.CreateDirectory(stagingPath);
 
-        Pack(addonPath, gameInfoPath, Path.Combine(stagingPath, $"{publishedFileId}_dir.vpk"));
+        Pack(addonPath, gameInfoPath, Path.Combine(stagingPath, $"{publishedFileId}_dir.vpk"), rules);
 
         var publishData = KVObject.Collection();
         publishData.Add("title", title);
@@ -114,36 +114,57 @@ public static class AddonPackager
     }
 
     /// <summary>
-    /// All the files to pack into the addon.
+    /// All the files to pack into the addon: what the user's <paramref name="rules"/> and then gameinfo's VpkDirectories allow, without the files the workshop manager skips.
     /// </summary>
-    public static List<FileInfo> CollectFiles(string addonPath, string gameInfoPath)
+    public static List<FileInfo> CollectFiles(string addonPath, string gameInfoPath, AddonRules? rules = null)
     {
         addonPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addonPath));
 
-        var rules = LoadVpkDirectories(gameInfoPath);
+        var directoryRules = LoadVpkDirectories(gameInfoPath);
+
+        if (rules != null)
+        {
+            // the user's rules go first, so they win over gameinfo's
+            directoryRules.InsertRange(0, rules.Rules.Select(rule => new VpkDirectoryRule(rule.Exclude, rule.Pattern)));
+        }
+
         var files = new List<string>();
-        CollectFiles(addonPath, addonPath, rules, files);
+        CollectFiles(addonPath, addonPath, directoryRules, files);
 
         return [.. files.Select(file => new FileInfo(file))];
     }
 
     /// <summary>
-    /// Get the addon contents, using <see cref="CollectFiles(string, string)"/> just like <see cref="Pack"/> but without doing any packing. 
+    /// Every file under the addon that a rule could pack: all of them but those the workshop manager always leaves out, whatever gameinfo or the user say.
     /// </summary>
-    public static AddonContents GetContents(string addonPath, string gameInfoPath)
+    public static List<FileInfo> ListFiles(string addonPath)
     {
-        return AddonContents.FromFiles(CollectFiles(addonPath, gameInfoPath));
+        addonPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addonPath));
+
+        // no directory rules at all accepts everything, leaving only the hard coded skips
+        var files = new List<string>();
+        CollectFiles(addonPath, addonPath, [], files);
+
+        return [.. files.Select(file => new FileInfo(file))];
+    }
+
+    /// <summary>
+    /// Get the addon contents, using <see cref="CollectFiles(string, string, AddonRules)"/> just like <see cref="Pack"/> but without doing any packing.
+    /// </summary>
+    public static AddonContents GetContents(string addonPath, string gameInfoPath, AddonRules? rules = null)
+    {
+        return AddonContents.FromFiles(CollectFiles(addonPath, gameInfoPath, rules));
     }
 
     /// <summary>
     /// Writes <paramref name="outputDirectoryFile"/> (ending in "_dir.vpk") and its numbered vok chunks.
     /// </summary>
     /// <returns>The packed files, relative to the addon root.</returns>
-    public static List<string> Pack(string addonPath, string gameInfoPath, string outputDirectoryFile)
+    public static List<string> Pack(string addonPath, string gameInfoPath, string outputDirectoryFile, AddonRules? rules = null)
     {
         addonPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addonPath));
 
-        var files = CollectFiles(addonPath, gameInfoPath);
+        var files = CollectFiles(addonPath, gameInfoPath, rules);
 
         using var package = new Package();
         package.WriteChunkSize = ChunkSize;
@@ -274,7 +295,8 @@ public static class AddonPackager
         }
     }
 
-    private static string GetRelativePath(string addonPath, string path)
+    /// <summary>A path under the addon the way the vpk and the rules name it, forward slashes and all.</summary>
+    public static string GetRelativePath(string addonPath, string path)
     {
         return Path.GetRelativePath(addonPath, path).Replace('\\', '/');
     }

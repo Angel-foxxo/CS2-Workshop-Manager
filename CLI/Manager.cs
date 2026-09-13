@@ -177,7 +177,7 @@ public static class Manager
 
         if (stage_only)
         {
-            var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow);
+            var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadRules(addon));
 
             Console.WriteLine($"Staged: {stagingPath}");
 

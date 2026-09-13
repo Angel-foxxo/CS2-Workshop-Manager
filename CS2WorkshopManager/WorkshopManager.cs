@@ -122,6 +122,22 @@ public sealed class WorkshopManager
 
     public string GameInfoPath => Path.Combine(GamePath, "game", "csgo", "gameinfo.gi");
 
+    /// <summary>Where the addons' source content lives, and with it their <see cref="AddonRules"/>.</summary>
+    public string ContentRoot => Path.Combine(GamePath, "content", "csgo_addons");
+
+    /// <summary>The user's rules for what <paramref name="addonName"/> uploads, none when they have not made any.</summary>
+    public AddonRules LoadRules(string addonName)
+    {
+        return AddonRules.Load(AddonRules.GetPath(ContentRoot, addonName));
+    }
+
+    public void SaveRules(string addonName, AddonRules rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        rules.Save(AddonRules.GetPath(ContentRoot, addonName));
+    }
+
     /// <summary>
     /// The addon folders under game/csgo_addons, without the folders the workshop manager keeps there itself.
     /// </summary>
@@ -308,7 +324,7 @@ public sealed class WorkshopManager
         var publishTime = DateTimeOffset.UtcNow;
 
         // only the info changes when there is no addon to upload
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime);
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime, LoadRules(options.AddonName));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);

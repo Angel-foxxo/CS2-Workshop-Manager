@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:GUI"
+        x:Class="GUI.AddonFilesWindow"
+        Title="Addon Files"
+        Icon="avares://CS2WorkshopManager-GUI/assets/icon.ico"
+        Width="1100" Height="760"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RadGenAppBrush}">
+    <Window.Styles>
+        <!-- file rows are many, so they sit tight -->
+        <Style Selector="ItemsControl#FilesList CheckBox">
+            <Setter Property="Margin" Value="8,1" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <local:DitheredGradient CenterColor="{DynamicResource RadGenAppAccentColor}" EdgeColor="{DynamicResource RadGenAppColor}" GradientOrigin="90%,0%" />
+
+        <DockPanel Margin="12">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                <TextBlock Text="Addon:" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="{DynamicResource RadGenContrastBrush}" />
+                <ComboBox Name="AddonBox" HorizontalAlignment="Stretch" SelectionChanged="OnAddonChanged" />
+            </DockPanel>
+
+            <!-- the same graph as the publish form -->
+            <local:ContentsBar Name="Contents" DockPanel.Dock="Top" Height="44" Margin="0,0,0,12" Foreground="{DynamicResource RadGenContrastBrush}" />
+
+            <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="{DynamicResource RadGenContrastBrush}" />
+
+            <Grid ColumnDefinitions="2*,12,3*">
+                <!-- the user's rules, saved as they change -->
+                <Border Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource RadGenContrastBrush}" />
+                        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
+                                <Button Content="Exclude" MinWidth="80" Tag="exclude" Click="OnAddRule" />
+                                <Button Content="Include" MinWidth="80" Tag="include" Click="OnAddRule" />
+                            </StackPanel>
+                            <TextBox Name="RulePattern" PlaceholderText="materials/dev/" />
+                        </DockPanel>
+                        <ScrollViewer>
+                            <ItemsControl Name="RulesList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:RuleRow">
+                                        <DockPanel Margin="12,4">
+                                            <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
+                                            <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
+                                            <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <!-- every file under the addon, ticked when the upload takes it -->
+                <Border Grid.Column="2" Background="{DynamicResource RadGenShadeBrush}" BorderBrush="{DynamicResource RadGenBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold" Foreground="{DynamicResource RadGenContrastBrush}" />
+                        <TextBlock DockPanel.Dock="Top" Margin="0,4,0,8" TextWrapping="Wrap" Foreground="{DynamicResource RadGenContrastSoftBrush}"
+                                   Text="Every file in the addon, files ticked by fault are packed by gameinfo.gi. &#10;&#10;Untick a file to keep it out, or tick a file that is kept out to bring it in, custom packing rules are saved in publish_rules.txt in the addon's content root." />
+                        <TextBox Name="SearchBox" DockPanel.Dock="Top" Margin="0,0,0,8" PlaceholderText="Search files" TextChanged="OnSearchChanged" />
+                        <ScrollViewer>
+                            <ItemsControl Name="FilesList">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:FileRow">
+                                        <CheckBox IsChecked="{Binding Packed, Mode=OneWay}" Click="OnFileClick" HorizontalAlignment="Stretch">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Margin="12,0,0,0" Foreground="{DynamicResource RadGenContrastSoftBrush}" />
+                                                <TextBlock Text="{Binding RelativePath}" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </DockPanel>
+    </Panel>
+</Window>
