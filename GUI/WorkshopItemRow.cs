@@ -77,6 +77,9 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
 
     public IReadOnlyList<TagPill> Pills { get; } = [.. item.Tags.Select(tag => new TagPill(tag, WorkshopManager.DefaultTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))];
 
+    /// <summary>The tags that say something, for the tiles, which have no room for the two every map carries.</summary>
+    public IReadOnlyList<TagPill> GameModePills => [.. Pills.Where(pill => !pill.Standard)];
+
     public string Description => Item.Description;
 
     /// <summary>The description as plain text, its markup and pictures taken out, for the list.</summary>

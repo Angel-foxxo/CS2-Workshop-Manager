@@ -116,6 +116,9 @@
         <!-- tiles are list items so one can be selected, shown by an accent halo in the tile margin -->
         <Style Selector="ListBox#TileItems ListBoxItem">
             <Setter Property="Padding" Value="0" />
+            <!-- a tile fills the height the row gives it, instead of floating in the middle of it -->
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="ListBox#TileItems ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -209,13 +212,13 @@
                 </ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="local:WorkshopItemRow">
-                        <!-- fixed height so every tile in a row is the same, sized for a two line title, the counts and two lines of tags -->
-                        <Border Width="256" Height="300" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                        <!-- tiles take the height they need, and the wrap panel gives every tile in a row the height of the tallest -->
+                        <Border Width="256" Margin="4" Padding="8" CornerRadius="5" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                             <DockPanel>
-                                <local:PreviewImage DockPanel.Dock="Top" Height="135" Source="{Binding Thumbnail}" />
+                                <local:PreviewImage DockPanel.Dock="Top" Width="240" Height="135" Source="{Binding Thumbnail}" />
                                 <SelectableTextBlock Text="{Binding Title}" DockPanel.Dock="Top" Margin="0,10,0,0" FontWeight="SemiBold" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" />
-                                <!-- the details sit centered in the room left under the title -->
-                                <StackPanel Spacing="10" VerticalAlignment="Center">
+                                <!-- the details follow the title, so tiles of different height in a row still line up -->
+                                <StackPanel Spacing="10" Margin="0,10,0,0" VerticalAlignment="Top">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Border Classes="pill" Classes.public="{Binding IsPublic}" Classes.unlisted="{Binding IsUnlisted}" Classes.friends="{Binding IsFriendsOnly}" Margin="0">
                                         <TextBlock Text="{Binding VisibilityText}" />
@@ -234,7 +237,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <ItemsControl ItemsSource="{Binding Pills}">
+                                <ItemsControl ItemsSource="{Binding GameModePills}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <WrapPanel />
