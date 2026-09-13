@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -171,6 +172,52 @@ public sealed class BbCodeView : StackPanel
         }
 
         return root.Children;
+    }
+
+    /// <summary>
+    /// The text of the markup with the tags taken out: pictures and videos are dropped, links keep their text, and blocks start on their own lines, with no empty lines left over.
+    /// </summary>
+    public static string ToPlainText(string text)
+    {
+        var plain = new StringBuilder();
+        Flatten(Parse(text), plain);
+
+        var lines = plain.ToString().Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        return string.Join('\n', lines);
+
+        static void Flatten(List<Node> nodes, StringBuilder plain)
+        {
+            foreach (var node in nodes)
+            {
+                switch (node.Tag)
+                {
+                    case null:
+                        plain.Append(node.Text);
+                        break;
+                    case "img" or "previewyoutube":
+                        break;
+                    case "url":
+                        plain.Append(node.InnerText);
+                        break;
+                    case "hr":
+                        plain.Append('\n');
+                        break;
+                    case "h1" or "h2" or "h3" or "quote" or "code" or "list" or "olist" or "*" or "table" or "tr":
+                        plain.Append('\n');
+                        Flatten(node.Children, plain);
+                        plain.Append('\n');
+                        break;
+                    case "td" or "th":
+                        Flatten(node.Children, plain);
+                        plain.Append(' ');
+                        break;
+                    default:
+                        Flatten(node.Children, plain);
+                        break;
+                }
+            }
+        }
     }
 
     private static void AddText(Node parent, string text)

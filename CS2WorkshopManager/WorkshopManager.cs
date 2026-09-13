@@ -67,6 +67,10 @@ public sealed record WorkshopItem(
     DateTimeOffset TimeCreated,
     DateTimeOffset TimeUpdated,
     long Size,
+    ulong Subscribers,
+    ulong Favorites,
+    ulong Likes,
+    ulong Views,
     Uri? PreviewUrl)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
@@ -277,6 +281,10 @@ public sealed class WorkshopManager
                         DateTimeOffset.FromUnixTimeSeconds(details.TimeCreated),
                         DateTimeOffset.FromUnixTimeSeconds(details.TimeUpdated),
                         (long)details.TotalFilesSize,
+                        ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumSubscriptions) ?? 0,
+                        ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumFavorites) ?? 0,
+                        details.VotesUp,
+                        ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumUniqueWebsiteViews) ?? 0,
                         ugc.GetQueryUGCPreviewURL(query, index));
                 }
 

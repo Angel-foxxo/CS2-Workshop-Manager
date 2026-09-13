@@ -29,6 +29,7 @@ public sealed class SteamUGC
         SendQueryUGCRequest = 4,
         GetQueryUGCResult = 5,
         GetQueryUGCPreviewURL = 9,
+        GetQueryUGCStatistic = 12,
         ReleaseQueryUGCRequest = 21,
         AddRequiredTag = 22,
         SetReturnLongDescription = 27,
@@ -95,6 +96,16 @@ public sealed class SteamUGC
         var found = ((delegate* unmanaged<void*, ulong, uint, byte*, uint, byte>)VTable[(int)Slot.GetQueryUGCPreviewURL])((void*)instance, query, index, url, PreviewUrlBufferSize) != 0;
 
         return found ? ToUri(Marshal.PtrToStringUTF8((nint)url)) : null;
+    }
+
+    /// <returns>One statistic of one result of a completed query, or null when the result does not carry it.</returns>
+    public unsafe ulong? GetQueryUGCStatistic(ulong query, uint index, EItemStatistic statistic)
+    {
+        ulong value;
+
+        var found = ((delegate* unmanaged<void*, ulong, uint, int, ulong*, byte>)VTable[(int)Slot.GetQueryUGCStatistic])((void*)instance, query, index, (int)statistic, &value) != 0;
+
+        return found ? value : null;
     }
 
     internal static Uri? ToUri(string? url)
@@ -415,6 +426,24 @@ public enum EItemUpdateStatus
     UploadingContent = 3,
     UploadingPreviewFile = 4,
     CommittingChanges = 5,
+}
+
+/// <summary>EItemStatistic, the counts a query result carries.</summary>
+public enum EItemStatistic
+{
+    NumSubscriptions = 0,
+    NumFavorites = 1,
+    NumFollowers = 2,
+    NumUniqueSubscriptions = 3,
+    NumUniqueFavorites = 4,
+    NumUniqueFollowers = 5,
+    NumUniqueWebsiteViews = 6,
+    ReportScore = 7,
+    NumSecondsPlayed = 8,
+    NumPlaytimeSessions = 9,
+    NumComments = 10,
+    NumSecondsPlayedDuringTimePeriod = 11,
+    NumPlaytimeSessionsDuringTimePeriod = 12,
 }
 
 public enum EUserUGCList

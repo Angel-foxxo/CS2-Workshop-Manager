@@ -365,14 +365,14 @@ public static class Commands
     {
         return await Manager.RunAsync(async () =>
         {
-            Console.WriteLine($"{"ID",-11} {"Visibility",-12} {"Updated",-16} {"Size",10}  Title [Tags]");
+            Console.WriteLine($"{"ID",-11} {"Visibility",-12} {"Updated",-16} {"Size",10} {"Subs",7} {"Views",8} {"Likes",7} {"Favs",7}  Title [Tags]");
 
             var count = 0;
 
             await foreach (var item in WorkshopManager.GetPublishedItemsAsync().ConfigureAwait(false))
             {
                 count++;
-                Console.WriteLine($"{item.PublishedFileId,-11} {VisibilityName(item.Visibility),-12} {item.TimeUpdated.ToLocalTime():yyyy-MM-dd HH:mm} {AddonContents.FormatSize(item.Size),10}  {item.Title} [{string.Join(", ", item.Tags)}]");
+                Console.WriteLine($"{item.PublishedFileId,-11} {VisibilityName(item.Visibility),-12} {item.TimeUpdated.ToLocalTime():yyyy-MM-dd HH:mm} {AddonContents.FormatSize(item.Size),10} {item.Subscribers,7:N0} {item.Views,8:N0} {item.Likes,7:N0} {item.Favorites,7:N0}  {item.Title} [{string.Join(", ", item.Tags)}]");
             }
 
             Console.WriteLine($"{count} published items");
