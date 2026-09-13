@@ -32,6 +32,7 @@ public static class Manager
         app.Add("edit", Commands.Edit);
         app.Add("list", Commands.List);
         app.Add("view", Commands.View);
+        app.Add("previews", Commands.Previews);
         app.Add("delete", Commands.Delete);
         app.Add("addons", Commands.Addons);
         app.Add("contents", Commands.Contents);
@@ -153,6 +154,8 @@ public static class Commands
     /// <param name="visibility">-v, Visibility of the workshop item: public, friendsonly, private or unlisted.</param>
     /// <param name="tags">Comma separated list of workshop tags added after the "CS2" and "Map" tags. Map game modes are Classic, Deathmatch, Armsrace, Wingman and Custom.</param>
     /// <param name="tags_dangerous">Comma separated workshop tags used as the complete tag list, without "CS2" and "Map". Without those the item does not show up as a Counter-Strike 2 map in the workshop or in the game's map browsers.</param>
+    /// <param name="screenshots">Comma separated disk paths of pictures to add to the gallery under the thumbnail, PNG, JPG or GIF under 1 MB each.</param>
+    /// <param name="videos">Comma separated YouTube links or video IDs to add to the gallery.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
     /// <param name="stage_only">Only pack the addon into game/csgo_addons/vpks/{id}/ and do not talk to Steam. Requires --id.</param>
     /// <param name="force">Update the item even when its installed workshop content was published from a different addon folder.</param>
@@ -168,6 +171,8 @@ public static class Commands
         string visibility = nameof(WorkshopVisibility.Private),
         string? tags = default,
         string? tags_dangerous = default,
+        string? screenshots = default,
+        string? videos = default,
         string? game = default,
         bool stage_only = false,
         bool force = false
@@ -238,6 +243,9 @@ public static class Commands
                     Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
                 }
 
+                // an existing item's gallery is kept in front of what is added, a new item's starts with what is added
+                var current = id != null && (screenshots != null || videos != null) ? (await FindItemAsync(id.Value).ConfigureAwait(false)).Previews : [];
+
                 var result = await manager.PublishAsync(new AddonPublishOptions
                 {
                     AddonName = addon,
@@ -247,6 +255,7 @@ public static class Commands
                     Visibility = itemVisibility,
                     Tags = itemTags,
                     ThumbnailImagePath = thumbnail,
+                    Gallery = BuildGallery(current, [], screenshots, videos),
                     ChangeNote = changenote,
                     AllowSourceFolderChange = force,
                 }, new Progress<float>(progress =>
@@ -281,6 +290,9 @@ public static class Commands
     /// <param name="thumbnail">-th, Disk path for a new thumbnail.</param>
     /// <param name="visibility">-v, New visibility: public, friendsonly, private or unlisted.</param>
     /// <param name="tags">Comma separated game mode tags to set, replacing the item's current game modes and keeping its other tags: Classic, Deathmatch, Armsrace, Wingman and Custom. Pass an empty string to clear them.</param>
+    /// <param name="screenshots">Comma separated disk paths of pictures to add to the gallery under the thumbnail, PNG, JPG or GIF under 1 MB each.</param>
+    /// <param name="videos">Comma separated YouTube links or video IDs to add to the gallery.</param>
+    /// <param name="remove_previews">Comma separated indices of gallery entries to remove, as the previews command lists them.</param>
     /// <param name="changenote">-c, Change note, none by default.</param>
     /// <param name="changenote_file">Read the change note from this text file instead.</param>
     public static async Task<int> Edit(
@@ -291,6 +303,9 @@ public static class Commands
         string? thumbnail = default,
         string? visibility = default,
         string? tags = default,
+        string? screenshots = default,
+        string? videos = default,
+        string? remove_previews = default,
         string? changenote = default,
         string? changenote_file = default
     )
@@ -312,20 +327,46 @@ public static class Commands
             return 1;
         }
 
-        if (title == null && description == null && thumbnail == null && itemVisibility == null && tags == null)
+        var removals = new List<int>();
+
+        foreach (var index in SplitTags(remove_previews))
         {
-            await Console.Error.WriteLineAsync("Nothing to change, give at least one of --title, --description, --thumbnail, --visibility or --tags.").ConfigureAwait(false);
+            if (!int.TryParse(index, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
+            {
+                await Console.Error.WriteLineAsync($"\"{index}\" is not a gallery index, the previews command lists them.").ConfigureAwait(false);
+                return 1;
+            }
+
+            removals.Add(parsed);
+        }
+
+        if (title == null && description == null && thumbnail == null && itemVisibility == null && tags == null && screenshots == null && videos == null && removals.Count == 0)
+        {
+            await Console.Error.WriteLineAsync("Nothing to change, give at least one of --title, --description, --thumbnail, --visibility, --tags, --screenshots, --videos or --remove_previews.").ConfigureAwait(false);
             return 1;
         }
 
         return await Manager.RunAsync(async () =>
         {
             IReadOnlyList<string>? itemTags = null;
+            GalleryUpdate? gallery = null;
+
+            // the item itself is only fetched for what needs it, the tags it has and the gallery it has
+            var item = tags != null || screenshots != null || videos != null || removals.Count > 0 ? await FindItemAsync(id).ConfigureAwait(false) : null;
+
+            if (item != null)
+            {
+                if (removals.Any(index => index >= item.Previews.Count))
+                {
+                    throw new ArgumentException($"The gallery has {item.Previews.Count} entries, the previews command lists them.");
+                }
+
+                gallery = BuildGallery(item.Previews, removals, screenshots, videos);
+            }
 
             if (tags != null)
             {
                 // the item's tags with its game modes swapped for the given ones, and "Map" put back should it have lost it
-                var item = await FindItemAsync(id).ConfigureAwait(false);
                 var modes = SplitTags(tags);
 
                 foreach (var mode in modes.Where(mode => !WorkshopManager.GameModeTags.Contains(mode, StringComparer.OrdinalIgnoreCase)))
@@ -333,7 +374,7 @@ public static class Commands
                     throw new ArgumentException($"\"{mode}\" is not a game mode, the game modes are {string.Join(", ", WorkshopManager.GameModeTags)}.");
                 }
 
-                var kept = item.Tags.Where(tag => !WorkshopManager.GameModeTags.Contains(tag, StringComparer.OrdinalIgnoreCase)).ToList();
+                var kept = item!.Tags.Where(tag => !WorkshopManager.GameModeTags.Contains(tag, StringComparer.OrdinalIgnoreCase)).ToList();
 
                 if (!kept.Contains("Map", StringComparer.OrdinalIgnoreCase))
                 {
@@ -351,6 +392,7 @@ public static class Commands
                 Visibility = itemVisibility,
                 Tags = itemTags,
                 ThumbnailImagePath = thumbnail,
+                Gallery = gallery,
                 ChangeNote = changenote,
             }).ConfigureAwait(false);
 
@@ -392,6 +434,33 @@ public static class Commands
         using var browser = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
         return 0;
+    }
+
+    /// <summary>
+    /// Lists the gallery under a published item's thumbnail, with the indices that --remove_previews takes.
+    /// </summary>
+    /// <param name="id">-i, Workshop ID of the submission.</param>
+    public static async Task<int> Previews(ulong id)
+    {
+        return await Manager.RunAsync(async () =>
+        {
+            var item = await FindItemAsync(id).ConfigureAwait(false);
+
+            for (var index = 0; index < item.Previews.Count; index++)
+            {
+                var preview = item.Previews[index];
+                var kind = preview.Kind switch
+                {
+                    WorkshopPreviewKind.YouTubeVideo => "video",
+                    WorkshopPreviewKind.Image => "screenshot",
+                    _ => "other",
+                };
+
+                Console.WriteLine($"[{index}] {kind,-10} {preview.PageUrl?.ToString() ?? preview.Value}{(preview.FileName.Length > 0 ? $" ({preview.FileName})" : string.Empty)}");
+            }
+
+            Console.WriteLine($"{item.Previews.Count} gallery entries on \"{item.Title}\"");
+        }).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -591,6 +660,32 @@ public static class Commands
     private static string[] SplitTags(string? tags)
     {
         return tags?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+    }
+
+    /// <summary>
+    /// The gallery as the command line edits it: the item's entries but the removed ones, in their order, then the new screenshots and videos. Null when nothing is asked of it.
+    /// </summary>
+    private static GalleryUpdate? BuildGallery(IReadOnlyList<WorkshopPreview> current, List<int> removals, string? screenshots, string? videos)
+    {
+        if (removals.Count == 0 && screenshots == null && videos == null)
+        {
+            return null;
+        }
+
+        var wanted = new List<PreviewSource>();
+
+        for (var index = 0; index < current.Count; index++)
+        {
+            if (!removals.Contains(index))
+            {
+                wanted.Add(PreviewSource.Existing(index));
+            }
+        }
+
+        wanted.AddRange(SplitTags(screenshots).Select(PreviewSource.Screenshot));
+        wanted.AddRange(SplitTags(videos).Select(PreviewSource.Video));
+
+        return new GalleryUpdate(current, wanted);
     }
 }
 

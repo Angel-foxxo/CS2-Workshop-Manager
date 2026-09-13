@@ -1,9 +1,14 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using CS2WorkshopManager;
 using Steamworks;
@@ -23,10 +28,50 @@ public enum SubmissionMode
 }
 
 /// <summary>
+/// One entry of the gallery as the form shows it: one the item has, or a screenshot or video added here that goes up with the submission.
+/// </summary>
+public sealed class GalleryEntry : INotifyPropertyChanged
+{
+    private object? thumbnail;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>Its index among the item's previews, or null when it was added here.</summary>
+    public int? Index { get; init; }
+
+    /// <summary>What it is, shown where there is no picture of it.</summary>
+    public string Kind { get; init; } = string.Empty;
+
+    public string Caption { get; init; } = string.Empty;
+
+    /// <summary>The picture to upload, for a screenshot added here.</summary>
+    public string? Path { get; init; }
+
+    /// <summary>The video to add, for a video added here.</summary>
+    public string? VideoId { get; init; }
+
+    /// <summary>Whether it is a YouTube video, the item's or added here, which the tile marks with a play badge.</summary>
+    public bool IsVideo { get; init; }
+
+    public object? Thumbnail
+    {
+        get => thumbnail;
+        set
+        {
+            thumbnail = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Thumbnail)));
+        }
+    }
+}
+
+/// <summary>
 /// The workshop manager's publish form for a new submission, a re-upload or an info edit, shown in place of the item list.
 /// </summary>
 public partial class SubmissionView : UserControl
 {
+    /// <summary>Fetches gallery pictures, the item's own and YouTube's thumbnails of its videos.</summary>
+    private static readonly HttpClient Http = new();
+
     /// <summary>The workshop manager refuses descriptions and update notes of this many characters or more.</summary>
     private const int MaxTextLength = 8000;
 
@@ -51,6 +96,13 @@ public partial class SubmissionView : UserControl
     /// <summary>The image picked for the preview, null keeps whatever the item has.</summary>
     private string? thumbnailPath;
 
+    /// <summary>The gallery as shown: the item's entries that were not removed, and the ones added here, in the order they are to have.</summary>
+    private readonly ObservableCollection<GalleryEntry> gallery = [];
+
+    /// <summary>The gallery entry being held, while it is dragged into a new place, and where in its tile the pointer took hold.</summary>
+    private GalleryEntry? draggedEntry;
+    private Point grabOffset;
+
     private TaskCompletionSource<PublishedSubmission?>? finished;
 
     public SubmissionView()
@@ -70,6 +122,9 @@ public partial class SubmissionView : UserControl
 
         PreviewDrop.AddHandler(DragDrop.DragOverEvent, OnDragOver);
         PreviewDrop.AddHandler(DragDrop.DropEvent, OnDrop);
+
+        Gallery.ItemsSource = gallery;
+        gallery.CollectionChanged += (_, _) => GalleryHint.IsVisible = gallery.Count == 0;
     }
 
     /// <summary>
@@ -99,7 +154,9 @@ public partial class SubmissionView : UserControl
         ChangeNoteBox.Text = string.Empty;
         TitleBox.Text = item?.Title ?? string.Empty;
         DescriptionBox.Text = item?.Description ?? string.Empty;
-        ShowDescription(preview: false);
+        // an item that has a description opens on how it reads, a new one on where to type it
+        ShowDescription(preview: !string.IsNullOrWhiteSpace(item?.Description));
+
         VisibilityBox.SelectedItem = Array.Find(VisibilityChoices, choice => choice.Value == (item?.Visibility ?? WorkshopVisibility.Private));
         Status.Text = string.Empty;
 
@@ -109,6 +166,31 @@ public partial class SubmissionView : UserControl
         }
 
         SetPreview(row?.Preview == null ? null : PreviewImage.Decode(row.Preview));
+
+        gallery.Clear();
+
+        if (item != null)
+        {
+            for (var index = 0; index < item.Previews.Count; index++)
+            {
+                var preview = item.Previews[index];
+                var entry = new GalleryEntry
+                {
+                    Index = index,
+                    Kind = preview.Kind switch
+                    {
+                        WorkshopPreviewKind.YouTubeVideo => "YouTube video",
+                        WorkshopPreviewKind.Image => "Screenshot",
+                        _ => "Preview",
+                    },
+                    Caption = preview.Kind == WorkshopPreviewKind.Image && preview.FileName.Length > 0 ? preview.FileName : preview.Value,
+                    IsVideo = preview.Kind == WorkshopPreviewKind.YouTubeVideo,
+                };
+
+                gallery.Add(entry);
+                _ = LoadGalleryImageAsync(entry, preview.ImageUrl);
+            }
+        }
 
         if (uploads)
         {
@@ -322,6 +404,169 @@ public partial class SubmissionView : UserControl
         }
     }
 
+    /// <summary>Puts a picture on a gallery entry once it arrives, or leaves the entry's kind showing when it does not.</summary>
+    private static async Task LoadGalleryImageAsync(GalleryEntry entry, Uri? url)
+    {
+        if (url == null)
+        {
+            return;
+        }
+
+        try
+        {
+            entry.Thumbnail = PreviewImage.Decode(await Http.GetByteArrayAsync(url), 320);
+        }
+        catch (Exception)
+        {
+            // the entry's kind stays in place of the picture, whatever the fetch or the decoder throws
+        }
+    }
+
+    private async void OnAddScreenshots(object? sender, RoutedEventArgs e)
+    {
+        var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Gallery Screenshots",
+            AllowMultiple = true,
+            FileTypeFilter = [FilePickerFileTypes.ImageAll],
+        });
+
+        foreach (var file in files)
+        {
+            if (file.TryGetLocalPath() is not string path)
+            {
+                continue;
+            }
+
+            try
+            {
+                // the check the upload makes, so a picture Steam would refuse is refused here
+                WorkshopManager.ValidateScreenshot(path);
+
+                var entry = new GalleryEntry { Kind = "Screenshot", Caption = Path.GetFileName(path), Path = path };
+
+                try
+                {
+                    entry.Thumbnail = PreviewImage.Decode(await File.ReadAllBytesAsync(path), 320);
+                }
+                catch (Exception)
+                {
+                    // the upload takes formats the window can not show, whatever the decoder throws
+                }
+
+                gallery.Add(entry);
+            }
+            catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Gallery Screenshot", exception.Message);
+            }
+        }
+    }
+
+    private async void OnAddVideo(object? sender, RoutedEventArgs e)
+    {
+        var text = await MessageDialog.AskTextAsync(OwnerWindow, MessageKind.Info, "Add Video", "Enter the YouTube link or video ID of the video to add to the gallery.", "Add", "https://www.youtube.com/watch?v=...");
+
+        if (text == null)
+        {
+            return;
+        }
+
+        if (WorkshopManager.ParseYouTubeVideoId(text) is not string videoId)
+        {
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Add Video", "That is not a YouTube link or an 11 character video ID.");
+            return;
+        }
+
+        var entry = new GalleryEntry { Kind = "YouTube video", Caption = videoId, VideoId = videoId, IsVideo = true };
+
+        gallery.Add(entry);
+
+        await LoadGalleryImageAsync(entry, new Uri($"https://img.youtube.com/vi/{videoId}/hqdefault.jpg"));
+    }
+
+    /// <summary>Takes hold of a tile. The gallery keeps the pointer rather than the tile, since a reshuffle can replace the tile's control under it.</summary>
+    private void OnTilePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border tile || tile.DataContext is not GalleryEntry entry || !e.GetCurrentPoint(tile).Properties.IsLeftButtonPressed || Gallery.ContainerFromItem(entry) is not Control container)
+        {
+            return;
+        }
+
+        draggedEntry = entry;
+        grabOffset = e.GetPosition(container);
+        Gallery.Cursor = new Cursor(StandardCursorType.DragMove);
+        e.Pointer.Capture(Gallery);
+        Lift(container, e.GetPosition(Gallery.ItemsPanelRoot!));
+    }
+
+    /// <summary>
+    /// The held tile follows the pointer, and takes the place of whichever other tile the pointer is over, the rest making room as the order changes under it.
+    /// </summary>
+    private void OnGalleryPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (draggedEntry == null || Gallery.ItemsPanelRoot is not Panel panel)
+        {
+            return;
+        }
+
+        var point = e.GetPosition(panel);
+
+        foreach (var container in Gallery.GetRealizedContainers())
+        {
+            if (container.DataContext is GalleryEntry target && target != draggedEntry && container.Bounds.Contains(point))
+            {
+                gallery.Move(gallery.IndexOf(draggedEntry), gallery.IndexOf(target));
+                panel.UpdateLayout();
+                break;
+            }
+        }
+
+        if (Gallery.ContainerFromItem(draggedEntry) is Control held)
+        {
+            Lift(held, point);
+        }
+    }
+
+    /// <summary>Draws the held tile above the others, offset from its slot to sit under the pointer where it was taken hold of.</summary>
+    private void Lift(Control container, Point point)
+    {
+        container.ZIndex = 1;
+        container.RenderTransform = new TranslateTransform(point.X - grabOffset.X - container.Bounds.X, point.Y - grabOffset.Y - container.Bounds.Y);
+    }
+
+    private void OnGalleryPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        Drop();
+    }
+
+    private void OnGalleryCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        Drop();
+    }
+
+    /// <summary>Lets go of the held tile, which settles into the slot it was dragged to.</summary>
+    private void Drop()
+    {
+        if (draggedEntry != null && Gallery.ContainerFromItem(draggedEntry) is Control held)
+        {
+            held.ZIndex = 0;
+            held.RenderTransform = null;
+        }
+
+        draggedEntry = null;
+        Gallery.Cursor = null;
+    }
+
+    /// <summary>Takes an entry out of the gallery: one the item has is removed on submit, one added here is simply not added.</summary>
+    private void OnRemovePreview(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is GalleryEntry entry)
+        {
+            gallery.Remove(entry);
+        }
+    }
+
     /// <summary>
     /// The tags the workshop manager would submit: an upload starts over from its own tags, an info edit keeps the item's and applies the game mode boxes to them.
     /// </summary>
@@ -374,7 +619,7 @@ public partial class SubmissionView : UserControl
             return $"Exceeds {AddonContents.FormatSize(AddonPackager.MaxTotalSize)} upload limit! Please optimize your content under this limit.";
         }
 
-        if (mode == SubmissionMode.Edit && options.Title == null && options.Description == null && options.Visibility == null && options.Tags == null && options.ThumbnailImagePath == null)
+        if (mode == SubmissionMode.Edit && options.Title == null && options.Description == null && options.Visibility == null && options.Tags == null && options.ThumbnailImagePath == null && options.Gallery == null)
         {
             return "Nothing was changed.";
         }
@@ -434,6 +679,7 @@ public partial class SubmissionView : UserControl
             Visibility = edits && visibility == item!.Visibility ? null : visibility,
             Tags = edits && tags.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(item!.Tags) ? null : tags,
             ThumbnailImagePath = thumbnailPath,
+            Gallery = BuildGallery(),
             ChangeNote = mode == SubmissionMode.ReUpload ? changeNote : null,
         };
 
@@ -491,6 +737,22 @@ public partial class SubmissionView : UserControl
         {
             SetBusy(false);
         }
+    }
+
+    /// <summary>The gallery as shown, for publishing, or null when it is the item's gallery untouched, which the info edit's checks rely on.</summary>
+    private GalleryUpdate? BuildGallery()
+    {
+        var current = item?.Previews ?? [];
+        var untouched = gallery.Count == current.Count && gallery.Select((entry, position) => entry.Index == position).All(same => same);
+
+        if (untouched)
+        {
+            return null;
+        }
+
+        var wanted = gallery.Select(entry => entry.Index is int index ? PreviewSource.Existing(index) : entry.Path != null ? PreviewSource.Screenshot(entry.Path) : PreviewSource.Video(entry.VideoId!)).ToList();
+
+        return new GalleryUpdate(current, wanted);
     }
 
     private void SetBusy(bool busy)

@@ -22,6 +22,9 @@ public sealed class SteamUGC
 
     private const int PreviewUrlBufferSize = 1024;
 
+    /// <summary>MAX_PATH again, for the file name a gallery entry was uploaded under.</summary>
+    private const int PreviewFileNameBufferSize = 260;
+
     /// <summary>ISteamUGC vtable slots, in the order of isteamugc.h.</summary>
     private enum Slot
     {
@@ -30,9 +33,12 @@ public sealed class SteamUGC
         GetQueryUGCResult = 5,
         GetQueryUGCPreviewURL = 9,
         GetQueryUGCStatistic = 12,
+        GetQueryUGCNumAdditionalPreviews = 13,
+        GetQueryUGCAdditionalPreview = 14,
         ReleaseQueryUGCRequest = 21,
         AddRequiredTag = 22,
         SetReturnLongDescription = 27,
+        SetReturnAdditionalPreviews = 30,
         CreateItem = 44,
         StartItemUpdate = 45,
         SetItemTitle = 46,
@@ -41,6 +47,11 @@ public sealed class SteamUGC
         SetItemTags = 51,
         SetItemContent = 52,
         SetItemPreview = 53,
+        AddItemPreviewFile = 58,
+        AddItemPreviewVideo = 59,
+        UpdateItemPreviewFile = 60,
+        UpdateItemPreviewVideo = 61,
+        RemoveItemPreview = 62,
         SubmitItemUpdate = 66,
         GetItemUpdateProgress = 67,
         GetItemInstallInfo = 77,
@@ -106,6 +117,29 @@ public sealed class SteamUGC
         var found = ((delegate* unmanaged<void*, ulong, uint, int, ulong*, byte>)VTable[(int)Slot.GetQueryUGCStatistic])((void*)instance, query, index, (int)statistic, &value) != 0;
 
         return found ? value : null;
+    }
+
+    public unsafe bool SetReturnAdditionalPreviews(ulong query, bool returnAdditionalPreviews)
+    {
+        return ((delegate* unmanaged<void*, ulong, byte, byte>)VTable[(int)Slot.SetReturnAdditionalPreviews])((void*)instance, query, returnAdditionalPreviews ? (byte)1 : (byte)0) != 0;
+    }
+
+    /// <returns>How many previews one result of a completed query has besides its main one, when the query asked for them.</returns>
+    public unsafe uint GetQueryUGCNumAdditionalPreviews(ulong query, uint index)
+    {
+        return ((delegate* unmanaged<void*, ulong, uint, uint>)VTable[(int)Slot.GetQueryUGCNumAdditionalPreviews])((void*)instance, query, index);
+    }
+
+    /// <returns>One of the previews a result has besides its main one, or null when there is no such preview.</returns>
+    public unsafe AdditionalPreview? GetQueryUGCAdditionalPreview(ulong query, uint index, uint previewIndex)
+    {
+        var url = stackalloc byte[PreviewUrlBufferSize];
+        var fileName = stackalloc byte[PreviewFileNameBufferSize];
+        int type;
+
+        var found = ((delegate* unmanaged<void*, ulong, uint, uint, byte*, uint, byte*, uint, int*, byte>)VTable[(int)Slot.GetQueryUGCAdditionalPreview])((void*)instance, query, index, previewIndex, url, PreviewUrlBufferSize, fileName, PreviewFileNameBufferSize, &type) != 0;
+
+        return found ? new AdditionalPreview((EItemPreviewType)type, Marshal.PtrToStringUTF8((nint)url) ?? string.Empty, Marshal.PtrToStringUTF8((nint)fileName) ?? string.Empty) : null;
     }
 
     internal static Uri? ToUri(string? url)
@@ -185,6 +219,45 @@ public sealed class SteamUGC
         return CallWithString(Slot.SetItemPreview, handle, previewFile);
     }
 
+    /// <summary>Adds a picture to the item's previews besides the main one, which Steam wants under 1 MB.</summary>
+    public unsafe bool AddItemPreviewFile(ulong handle, string previewFile, EItemPreviewType type)
+    {
+        fixed (byte* text = SteamClient.NullTerminated(previewFile))
+        {
+            return ((delegate* unmanaged<void*, ulong, byte*, int, byte>)VTable[(int)Slot.AddItemPreviewFile])((void*)instance, handle, text, (int)type) != 0;
+        }
+    }
+
+    /// <summary>Adds a YouTube video, by its id, to the item's previews besides the main one.</summary>
+    public bool AddItemPreviewVideo(ulong handle, string videoId)
+    {
+        return CallWithString(Slot.AddItemPreviewVideo, handle, videoId);
+    }
+
+    /// <summary>Replaces one of the item's previews besides the main one, by its index among them, with a picture.</summary>
+    public unsafe bool UpdateItemPreviewFile(ulong handle, uint index, string previewFile)
+    {
+        fixed (byte* text = SteamClient.NullTerminated(previewFile))
+        {
+            return ((delegate* unmanaged<void*, ulong, uint, byte*, byte>)VTable[(int)Slot.UpdateItemPreviewFile])((void*)instance, handle, index, text) != 0;
+        }
+    }
+
+    /// <summary>Replaces one of the item's previews besides the main one, by its index among them, with a YouTube video by its id.</summary>
+    public unsafe bool UpdateItemPreviewVideo(ulong handle, uint index, string videoId)
+    {
+        fixed (byte* text = SteamClient.NullTerminated(videoId))
+        {
+            return ((delegate* unmanaged<void*, ulong, uint, byte*, byte>)VTable[(int)Slot.UpdateItemPreviewVideo])((void*)instance, handle, index, text) != 0;
+        }
+    }
+
+    /// <summary>Removes one of the item's previews besides the main one, by its index among them.</summary>
+    public unsafe bool RemoveItemPreview(ulong handle, uint index)
+    {
+        return ((delegate* unmanaged<void*, ulong, uint, byte>)VTable[(int)Slot.RemoveItemPreview])((void*)instance, handle, index) != 0;
+    }
+
     /// <returns>Call handle for <see cref="SteamClient.WaitForCallResultAsync{T}"/> with <see cref="SubmitItemUpdateResult"/>.</returns>
     public unsafe ulong SubmitItemUpdate(ulong handle, string? changeNote)
     {
@@ -242,6 +315,19 @@ public sealed class SteamUGC
 }
 
 public readonly record struct ItemUpdateProgress(EItemUpdateStatus Status, ulong BytesProcessed, ulong BytesTotal);
+
+/// <summary>One of an item's previews besides its main one: the url of a picture or the id of a YouTube video, and the name it was uploaded under.</summary>
+public readonly record struct AdditionalPreview(EItemPreviewType Type, string Value, string FileName);
+
+/// <summary>EItemPreviewType</summary>
+public enum EItemPreviewType
+{
+    Image = 0,
+    YouTubeVideo = 1,
+    EnvironmentMapHorizontalCross = 3,
+    EnvironmentMapLatLong = 4,
+    Clip = 5,
+}
 
 /// <summary>SteamUGCQueryCompleted_t</summary>
 public readonly record struct SteamUGCQueryCompleted(ulong Query, EResult Result, uint NumResultsReturned, uint TotalMatchingResults, bool CachedData) : ICallResult<SteamUGCQueryCompleted>

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using StbImageSharp;
 using StbImageWriteSharp;
@@ -43,6 +44,9 @@ public sealed record AddonPublishOptions
     /// <summary> Disk path for the user facing thumbnail image that will show up on the Workshop. Null leaves the published preview alone. </summary>
     public string? ThumbnailImagePath { get; init; }
 
+    /// <summary> The gallery under the main preview as it should be afterwards, see <see cref="GalleryUpdate"/>. Null leaves the published gallery alone. </summary>
+    public GalleryUpdate? Gallery { get; init; }
+
     /// <summary> Change note that shows up in the "Change Notes" tab. Null gives the workshop manager's "Created {Title}." or "Edited {Title}." for an upload and no note when only editing info. </summary>
     public string? ChangeNote { get; init; }
 
@@ -53,6 +57,75 @@ public sealed record AddonPublishOptions
 public sealed record WorkshopPublishResult(ulong PublishedFileId, bool NeedsWorkshopAgreement)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
+}
+
+/// <summary>
+/// One entry of a gallery as it should be after publishing.
+/// </summary>
+public sealed record PreviewSource
+{
+    public int? ExistingIndex { get; private init; }
+
+    public string? ImagePath { get; private init; }
+
+    public string? VideoId { get; private init; }
+
+    public static PreviewSource Existing(int index)
+    {
+        return new PreviewSource { ExistingIndex = index };
+    }
+
+    /// <param name="path">A PNG, JPG or GIF file under 1 MB.</param>
+    public static PreviewSource Screenshot(string path)
+    {
+        return new PreviewSource { ImagePath = path };
+    }
+
+    /// <param name="idOrLink">A YouTube video id, or a link to the video.</param>
+    public static PreviewSource Video(string idOrLink)
+    {
+        return new PreviewSource { VideoId = WorkshopManager.ParseYouTubeVideoId(idOrLink) ?? throw new ArgumentException($"\"{idOrLink}\" is not a YouTube video id or link.", nameof(idOrLink)) };
+    }
+}
+
+/// <summary>
+/// The gallery under an item's main preview as it is, and as it should be after publishing, in order. Entries of <paramref name="Current"/> that are not wanted go,
+/// and wanted entries can be in any order, with new pictures and videos anywhere among them.
+/// </summary>
+public sealed record GalleryUpdate(IReadOnlyList<WorkshopPreview> Current, IReadOnlyList<PreviewSource> Wanted);
+
+public enum WorkshopPreviewKind
+{
+    Image,
+    YouTubeVideo,
+    Other,
+}
+
+/// <summary>
+/// One entry of the gallery under an item's main preview: a picture by its url, or a YouTube video by its id.
+/// </summary>
+public sealed record WorkshopPreview(WorkshopPreviewKind Kind, string Value, string FileName)
+{
+    /// <summary>A picture of it: the picture itself, or the video's thumbnail from YouTube. Null for what has none.</summary>
+    public Uri? ImageUrl => Kind switch
+    {
+        WorkshopPreviewKind.Image => Absolute(Value),
+        WorkshopPreviewKind.YouTubeVideo => Absolute($"https://img.youtube.com/vi/{Value}/hqdefault.jpg"),
+        _ => null,
+    };
+
+    /// <summary>Where it opens: the picture, or the video on YouTube.</summary>
+    public Uri? PageUrl => Kind switch
+    {
+        WorkshopPreviewKind.Image => Absolute(Value),
+        WorkshopPreviewKind.YouTubeVideo => Absolute($"https://www.youtube.com/watch?v={Value}"),
+        _ => null,
+    };
+
+    private static Uri? Absolute(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri : null;
+    }
 }
 
 /// <summary>
@@ -71,7 +144,8 @@ public sealed record WorkshopItem(
     ulong Favorites,
     ulong Likes,
     ulong Views,
-    Uri? PreviewUrl)
+    Uri? PreviewUrl,
+    IReadOnlyList<WorkshopPreview> Previews)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
 }
@@ -255,6 +329,7 @@ public sealed class WorkshopManager
                 // only items tagged as CS2 maps, the tag the workshop manager always sets
                 ugc.AddRequiredTag(query, DefaultTags[0]);
                 ugc.SetReturnLongDescription(query, true);
+                ugc.SetReturnAdditionalPreviews(query, true);
 
                 var completed = await client.WaitForCallResultAsync<SteamUGCQueryCompleted>(ugc.SendQueryUGCRequest(query)).ConfigureAwait(false);
 
@@ -285,7 +360,8 @@ public sealed class WorkshopManager
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumFavorites) ?? 0,
                         details.VotesUp,
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumUniqueWebsiteViews) ?? 0,
-                        ugc.GetQueryUGCPreviewURL(query, index));
+                        ugc.GetQueryUGCPreviewURL(query, index),
+                        ReadPreviews(ugc, query, index));
                 }
 
                 if (completed.NumResultsReturned < SteamUGC.ResultsPerPage || count >= completed.TotalMatchingResults)
@@ -298,6 +374,223 @@ public sealed class WorkshopManager
                 ugc.ReleaseQueryUGCRequest(query);
             }
         }
+    }
+
+    /// <summary>The gallery of one query result, in the order Steam keeps it, which is the order the indices for removing entries refer to.</summary>
+    private static List<WorkshopPreview> ReadPreviews(SteamUGC ugc, ulong query, uint index)
+    {
+        var previews = new List<WorkshopPreview>();
+        var count = ugc.GetQueryUGCNumAdditionalPreviews(query, index);
+
+        for (var previewIndex = 0u; previewIndex < count; previewIndex++)
+        {
+            if (ugc.GetQueryUGCAdditionalPreview(query, index, previewIndex) is { } preview)
+            {
+                var kind = preview.Type switch
+                {
+                    EItemPreviewType.Image => WorkshopPreviewKind.Image,
+                    EItemPreviewType.YouTubeVideo => WorkshopPreviewKind.YouTubeVideo,
+                    _ => WorkshopPreviewKind.Other,
+                };
+
+                previews.Add(new WorkshopPreview(kind, preview.Value, preview.FileName));
+            }
+        }
+
+        return previews;
+    }
+
+    /// <summary>
+    /// The video id in a YouTube link of any of the usual shapes, or the text itself when it already is an id, or null when it is neither.
+    /// </summary>
+    public static string? ParseYouTubeVideoId(string text)
+    {
+        text = text.Trim();
+
+        if (IsVideoId(text))
+        {
+            return text;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var link))
+        {
+            return null;
+        }
+
+        var segments = link.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // youtu.be/ID, and youtube.com/watch?v=ID, /shorts/ID, /embed/ID, /live/ID
+        var candidate = link.Host.EndsWith("youtu.be", StringComparison.OrdinalIgnoreCase)
+            ? segments.FirstOrDefault()
+            : link.Host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
+                ? segments.Length >= 2 && segments[0] is "shorts" or "embed" or "live" ? segments[1] : QueryValue(link.Query, "v")
+                : null;
+
+        return candidate != null && IsVideoId(candidate) ? candidate : null;
+
+        static bool IsVideoId(string value)
+        {
+            return value.Length == 11 && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
+        }
+
+        static string? QueryValue(string query, string name)
+        {
+            foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var separator = pair.IndexOf('=');
+
+                if (separator > 0 && pair[..separator] == name)
+                {
+                    return pair[(separator + 1)..];
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>The most a gallery picture may weigh, as Steam has it.</summary>
+    public const long MaxScreenshotSize = 1024 * 1024;
+
+    /// <summary>Fetches the pictures of a gallery that move, since Steam takes a picture for a slot only as a file.</summary>
+    private static readonly HttpClient Http = new();
+
+    /// <summary>
+    /// Makes the gallery what <paramref name="update"/> wants. Kept entries in their order with new ones after them only take removals and additions.
+    /// Any other order rewrites the slots that differ, fetching the pictures Steam holds so they can be sent back where they now go.
+    /// </summary>
+    /// <returns>The files fetched for that, to delete once the update is submitted.</returns>
+    private static async Task<List<string>> ApplyGalleryAsync(SteamUGC ugc, ulong handle, GalleryUpdate update)
+    {
+        var current = update.Current;
+        var wanted = update.Wanted;
+        var fetched = new List<string>();
+
+        foreach (var source in wanted)
+        {
+            if (source.ExistingIndex is int index && (index < 0 || index >= current.Count))
+            {
+                throw new ArgumentException($"There is no gallery entry {index} to keep, the gallery has {current.Count}.", nameof(update));
+            }
+        }
+
+        var kept = wanted.Where(source => source.ExistingIndex != null).Select(source => source.ExistingIndex!.Value).ToList();
+        var keptFirst = kept.Count == 0 || wanted.ToList().FindLastIndex(source => source.ExistingIndex != null) == kept.Count - 1;
+        var keptInOrder = kept.Distinct().Count() == kept.Count && kept.SequenceEqual(kept.Order());
+
+        if (keptFirst && keptInOrder)
+        {
+            // only removals, from the last index down so the earlier indices stay what they were, and additions at the end
+            foreach (var index in Enumerable.Range(0, current.Count).Except(kept).OrderDescending())
+            {
+                ugc.RemoveItemPreview(handle, (uint)index);
+            }
+
+            foreach (var source in wanted.Where(source => source.ExistingIndex == null))
+            {
+                await AddAsync(source).ConfigureAwait(false);
+            }
+
+            return fetched;
+        }
+
+        for (var slot = 0; slot < wanted.Count; slot++)
+        {
+            var source = wanted[slot];
+
+            if (slot >= current.Count)
+            {
+                await AddAsync(source).ConfigureAwait(false);
+            }
+            else if (source.ExistingIndex != slot)
+            {
+                if (VideoOf(source) is string video)
+                {
+                    ugc.UpdateItemPreviewVideo(handle, (uint)slot, video);
+                }
+                else
+                {
+                    ugc.UpdateItemPreviewFile(handle, (uint)slot, await FileOfAsync(source).ConfigureAwait(false));
+                }
+            }
+        }
+
+        // the slots past the wanted gallery go, from the last down
+        for (var slot = current.Count - 1; slot >= wanted.Count; slot--)
+        {
+            ugc.RemoveItemPreview(handle, (uint)slot);
+        }
+
+        return fetched;
+
+        async Task AddAsync(PreviewSource source)
+        {
+            if (VideoOf(source) is string video)
+            {
+                ugc.AddItemPreviewVideo(handle, video);
+            }
+            else
+            {
+                ugc.AddItemPreviewFile(handle, await FileOfAsync(source).ConfigureAwait(false), EItemPreviewType.Image);
+            }
+        }
+
+        string? VideoOf(PreviewSource source)
+        {
+            return source.VideoId ?? (source.ExistingIndex is int index && current[index].Kind == WorkshopPreviewKind.YouTubeVideo ? current[index].Value : null);
+        }
+
+        async Task<string> FileOfAsync(PreviewSource source)
+        {
+            if (source.ImagePath != null)
+            {
+                return ValidateScreenshot(source.ImagePath);
+            }
+
+            var preview = current[source.ExistingIndex!.Value];
+
+            if (preview.Kind != WorkshopPreviewKind.Image || preview.ImageUrl == null)
+            {
+                throw new InvalidOperationException("Only pictures and YouTube videos can be moved in the gallery, anything else can stay where it is or be removed.");
+            }
+
+            // the picture Steam holds, under the name it was uploaded with, in a folder of this update's own
+            var folder = Path.Combine(Path.GetTempPath(), "CS2WorkshopManager", Guid.NewGuid().ToString("N"));
+            var name = Path.GetFileName(preview.FileName);
+            var path = Path.Combine(folder, name.Length > 0 ? name : $"preview{source.ExistingIndex}.jpg");
+
+            Directory.CreateDirectory(folder);
+            await File.WriteAllBytesAsync(path, await Http.GetByteArrayAsync(preview.ImageUrl).ConfigureAwait(false)).ConfigureAwait(false);
+            fetched.Add(path);
+
+            return path;
+        }
+    }
+
+    /// <summary>
+    /// Checks a picture for the gallery the way Steam will: a PNG, JPG or GIF file under 1 MB.
+    /// </summary>
+    /// <returns>The full path, which Steam wants.</returns>
+    public static string ValidateScreenshot(string path)
+    {
+        var file = new FileInfo(path);
+
+        if (!file.Exists)
+        {
+            throw new InvalidDataException($"Screenshot \"{path}\" does not exist.");
+        }
+
+        if (file.Extension is not (".png" or ".jpg" or ".jpeg" or ".gif"))
+        {
+            throw new InvalidDataException($"Screenshot \"{path}\" must be a PNG, JPG or GIF file.");
+        }
+
+        if (file.Length >= MaxScreenshotSize)
+        {
+            throw new InvalidDataException($"Screenshot \"{path}\" is {AddonContents.FormatSize(file.Length)}, the workshop takes gallery pictures under 1 MB.");
+        }
+
+        return file.FullName;
     }
 
     public async Task<WorkshopPublishResult> PublishAsync(AddonPublishOptions options, IProgress<float>? progress = null)
@@ -357,6 +650,8 @@ public sealed class WorkshopManager
             ugc.SetItemPreview(handle, WriteThumbnail(options.ThumbnailImagePath, publishedFileId, publishTime));
         }
 
+        var fetched = options.Gallery == null ? [] : await ApplyGalleryAsync(ugc, handle, options.Gallery).ConfigureAwait(false);
+
         if (contentPath != null)
         {
             ugc.SetItemContent(handle, contentPath);
@@ -369,15 +664,35 @@ public sealed class WorkshopManager
 
         var changeNote = options.ChangeNote ?? (editsInfoOnly ? string.Empty : options.PublishedFileId == null ? $"Created {options.Title}." : $"Edited {options.Title}.");
 
-        var result = await Steam.WaitForCallResultAsync<SubmitItemUpdateResult>(ugc.SubmitItemUpdate(handle, changeNote), () =>
-        {
-            var update = ugc.GetItemUpdateProgress(handle);
+        SubmitItemUpdateResult result;
 
-            if (update.BytesTotal > 0)
+        try
+        {
+            result = await Steam.WaitForCallResultAsync<SubmitItemUpdateResult>(ugc.SubmitItemUpdate(handle, changeNote), () =>
             {
-                progress?.Report((float)update.BytesProcessed / update.BytesTotal);
+                var update = ugc.GetItemUpdateProgress(handle);
+
+                if (update.BytesTotal > 0)
+                {
+                    progress?.Report((float)update.BytesProcessed / update.BytesTotal);
+                }
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            // the gallery pictures fetched to move them are only needed until they are sent
+            foreach (var path in fetched)
+            {
+                try
+                {
+                    Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+                }
+                catch (IOException)
+                {
+                    // a folder that will not go can stay in the temp folder
+                }
             }
-        }).ConfigureAwait(false);
+        }
 
         if (result.Result != EResult.OK)
         {

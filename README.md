@@ -17,8 +17,9 @@ Projects:
 Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this tool aims to fix and or improve on all of them.
 
 - Fixed loading descriptions, it will now show the entire description instead of just the first 255 bytes.
-- Added a new description editor, with Steam BBCode preview.
 - Added "Unlisted" visiblity option.
+- Added a new description editor, with Steam BBCode preview.
+- Added a new gallery editor, screenshots and YouTube videos under the thumbnail can be added and removed without leaving the app.
 - Added support for more thumnail file types as well as relutions.
 - Added support for GIF thumbnails.
 - Added support for custom used defined tags.
@@ -43,9 +44,10 @@ Exposes the full functionality that the base library and GUI expose, useful for 
 | Command | What it does |
 |---|---|
 | `upload` | Packs an addon and publishes it as a new item, or updates an existing item when `--id` is given. |
-| `edit` | Changes a published item's title, description, thumbnail, visibility or game modes. |
+| `edit` | Changes a published item's title, description, thumbnail, visibility or game modes, and adds or removes gallery screenshots and videos. |
 | `list` | Lists your published items with their counts. |
 | `view` | Opens an item's workshop page in the browser. |
+| `previews` | Lists the gallery under an item's thumbnail, with the indices that `edit --remove_previews` takes. |
 | `delete` | Deletes an item, after asking, or straight away with `--yes`. |
 | `addons` | Lists the addon folders, marking the one open in the tools. |
 | `contents` | Shows what an addon would upload by asset type. |

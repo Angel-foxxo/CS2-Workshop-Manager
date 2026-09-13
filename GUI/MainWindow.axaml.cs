@@ -53,11 +53,13 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// A right click selects the item under the pointer, as a left click would, so the menu's actions apply to it.
+    /// A click selects the item under the pointer, even on its selectable text, which would otherwise keep the click for selecting text, and a right click likewise so the menu's actions apply to it.
     /// </summary>
     private void OnItemPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed || e.Source is not Visual source)
+        var properties = e.GetCurrentPoint(this).Properties;
+
+        if (!(properties.IsLeftButtonPressed || properties.IsRightButtonPressed) || e.Source is not Visual source)
         {
             return;
         }

@@ -15,17 +15,26 @@ public enum MessageKind
 }
 
 /// <summary>
-/// A message to acknowledge, or a question whose buttons say what they do, in the main window's style.
+/// A message to acknowledge, or a question whose buttons say what they do, with a line of text to fill in when it asks for one, in the main window's style.
 /// </summary>
 public partial class MessageDialog : Window
 {
+    /// <summary>Whether the question asks for text, which is then what going ahead answers with.</summary>
+    private readonly bool asksText;
+
     /// <param name="confirm">What the button that goes ahead says, or null for a message that is only acknowledged.</param>
     /// <param name="cancel">What the button that backs out says.</param>
-    public MessageDialog(MessageKind kind, string title, string message, string? confirm, string cancel = "Cancel")
+    /// <param name="placeholder">What the text box shows while empty, for a question that asks for text, or null for no text box.</param>
+    public MessageDialog(MessageKind kind, string title, string message, string? confirm, string cancel = "Cancel", string? placeholder = null)
     {
         var question = confirm != null;
 
+        asksText = placeholder != null;
+
         InitializeComponent();
+
+        InputBox.IsVisible = asksText;
+        InputBox.PlaceholderText = placeholder;
 
         Title = title;
         Message.Text = message;
@@ -63,6 +72,16 @@ public partial class MessageDialog : Window
     {
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (asksText)
+        {
+            InputBox.Focus();
+        }
+    }
+
     /// <summary>Shows a message over <paramref name="owner"/> until it is acknowledged.</summary>
     public static Task ShowAsync(Window owner, MessageKind kind, string title, string message)
     {
@@ -78,13 +97,22 @@ public partial class MessageDialog : Window
         return new MessageDialog(kind, title, message, confirm, cancel).ShowDialog<bool>(owner);
     }
 
+    /// <summary>
+    /// Asks for a line of text over <paramref name="owner"/>, with a button that goes ahead saying <paramref name="confirm"/>, Enter going ahead too.
+    /// </summary>
+    /// <returns>The text, or null when the question was backed out of.</returns>
+    public static Task<string?> AskTextAsync(Window owner, MessageKind kind, string title, string message, string confirm, string placeholder)
+    {
+        return new MessageDialog(kind, title, message, confirm, "Cancel", placeholder).ShowDialog<string?>(owner);
+    }
+
     private void OnConfirm(object? sender, RoutedEventArgs e)
     {
-        Close(true);
+        Close(asksText ? InputBox.Text ?? string.Empty : true);
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e)
     {
-        Close(false);
+        Close(asksText ? null : false);
     }
 }
