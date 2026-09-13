@@ -4,7 +4,7 @@ External Counter-Strike 2 Workshop Manager.
 
 Packs a compiled addon the same way Valve's tool does and publishes it to the Steam Workshop, then lets you manage everything you have published.
 
-![Hero](.github/assets/hero.png)
+![Hero](https://raw.githubusercontent.com/Angel-foxxo/CS2-Workshop-Manager/main/.github/assets/hero.png)
 
 Projects:
 
@@ -37,7 +37,7 @@ Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this too
 
 Exposes the full functionality that the base library and GUI expose, useful for automating map updates which was the initial motivator for this project.
 
-![CLI](.github/assets/cli.png)
+![CLI](https://raw.githubusercontent.com/Angel-foxxo/CS2-Workshop-Manager/main/.github/assets/cli.png)
 
 ### Commands
 

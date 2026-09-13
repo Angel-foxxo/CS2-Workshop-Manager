@@ -7,7 +7,8 @@
     <!-- the source generated P/Invokes reading another process's command line -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
-    <PackageTags>counter-strike2 cs2 steam workshop valve manager manager</PackageTags>
+    <PackageTags>counter-strike2 cs2 steam workshop valve manager</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="StbImageSharp" Version="2.30.16" />
@@ -21,7 +22,8 @@
     <None Include="..\Steamworks\bin\$(Configuration)\Steamworks.dll" Pack="true" PackagePath="lib\$(TargetFramework)" Visible="false" />
   </ItemGroup>
   <ItemGroup>
-    <!-- the licence text goes into the package, the licence expression in Directory.Build.props stays what NuGet lists -->
+    <!-- the licence text and the readme go into the package, the licence expression in Directory.Build.props stays what NuGet lists -->
     <None Include="..\LICENSE" Pack="true" PackagePath="" Visible="false" />
+    <None Include="..\README.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
 </Project>
