@@ -18,4 +18,8 @@
   <ItemGroup>
     <ProjectReference Include="..\CS2WorkshopManager\CS2WorkshopManager.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- the licence ships next to the executable -->
+    <None Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

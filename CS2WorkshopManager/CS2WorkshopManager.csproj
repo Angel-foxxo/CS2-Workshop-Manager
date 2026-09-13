@@ -20,4 +20,8 @@
     <ProjectReference Include="..\Steamworks\Steamworks.csproj" PrivateAssets="all" />
     <None Include="..\Steamworks\bin\$(Configuration)\Steamworks.dll" Pack="true" PackagePath="lib\$(TargetFramework)" Visible="false" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- the licence text goes into the package, the licence expression in Directory.Build.props stays what NuGet lists -->
+    <None Include="..\LICENSE" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
 </Project>
