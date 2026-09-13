@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -12,19 +13,134 @@ namespace CLI;
 
 public static class Manager
 {
+    private static ConsoleApp.ConsoleAppBuilder? app;
+
     public static async Task Main(string[] args)
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
+        // titles and the copyright sign are not all in the console's own code page
+        Console.OutputEncoding = Encoding.UTF8;
+
         ConsoleApp.Version = GetVersion();
 
         // https://github.com/Cysharp/ConsoleAppFramework
-        await ConsoleApp.RunAsync(args, HandleArguments);
+        app = ConsoleApp.Create();
+        app.Add("", Commands.Help);
+        app.Add("upload", Commands.Upload);
+        app.Add("edit", Commands.Edit);
+        app.Add("list", Commands.List);
+        app.Add("view", Commands.View);
+        app.Add("delete", Commands.Delete);
+        app.Add("addons", Commands.Addons);
+        app.Add("contents", Commands.Contents);
+        app.Add("files", Commands.Files);
+        app.Add("rules", RulesCommands.List);
+        app.Add("rules exclude", RulesCommands.Exclude);
+        app.Add("rules include", RulesCommands.Include);
+        app.Add("rules remove", RulesCommands.Remove);
+
+        await app.RunAsync(args).ConfigureAwait(false);
+    }
+
+    /// <summary>Shows the help, the way --help does.</summary>
+    internal static async Task ShowHelpAsync()
+    {
+        await app!.RunAsync(["--help"]).ConfigureAwait(false);
+    }
+
+    /// <summary>Opens the game at <paramref name="game"/>, or the Steam install when that is null.</summary>
+    internal static WorkshopManager OpenGame(string? game)
+    {
+        if (game == null)
+        {
+            return WorkshopManager.FromSteamInstall();
+        }
+
+        if (!Directory.Exists(game))
+        {
+            throw new DirectoryNotFoundException($"Game folder \"{game}\" does not exist.");
+        }
+
+        return new WorkshopManager(Path.GetFullPath(game));
+    }
+
+    /// <summary>Get addon folder from addon name.</summary>
+    internal static string OpenAddon(WorkshopManager manager, string addon)
+    {
+        var addonPath = Path.Combine(manager.AddonsRoot, addon);
+
+        if (!Directory.Exists(addonPath))
+        {
+            throw new DirectoryNotFoundException($"Addon folder \"{addonPath}\" does not exist.");
+        }
+
+        return addonPath;
     }
 
     /// <summary>
-    /// Packs a compiled Counter-Strike 2 addon and publishes it to the Steam Workshop.
+    /// Runs a command, printing what went wrong for the errors the manager reports, and leaves Steam afterwards.
+    /// </summary>
+    /// <returns>The exit code.</returns>
+    internal static async Task<int> RunAsync(Func<Task> command)
+    {
+        try
+        {
+            await command().ConfigureAwait(false);
+            return 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException or ArgumentException)
+        {
+            await Console.Error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+            return 1;
+        }
+        finally
+        {
+            WorkshopManager.ShutdownSteam();
+        }
+    }
+
+    /// <summary>Runs a command that has nothing to wait for.</summary>
+    internal static int Run(Action command)
+    {
+        return RunAsync(() =>
+        {
+            command();
+            return Task.CompletedTask;
+        }).GetAwaiter().GetResult();
+    }
+
+    private static string GetVersion()
+    {
+        var assembly = typeof(Manager).Assembly;
+        var info = new StringBuilder();
+        info.Append("Version: ");
+        info.AppendLine(assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
+        info.Append("OS: ");
+        info.Append(RuntimeInformation.OSDescription);
+        info.Append(" (");
+        info.Append(RuntimeInformation.OSArchitecture.ToString());
+        info.AppendLine(")");
+        info.AppendLine(assembly.GetCustomAttribute<AssemblyCopyrightAttribute>()!.Copyright);
+        info.Append("Source: ");
+        info.Append(assembly.GetCustomAttributes<AssemblyMetadataAttribute>().First(metadata => metadata.Key == "RepositoryUrl").Value);
+        return info.ToString();
+    }
+}
+
+public static class Commands
+{
+    /// <summary>
+    /// Command line Counter-Strike 2 Workshop manager.
+    /// </summary>
+    public static async Task Help()
+    {
+        await Manager.ShowHelpAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Packs a compiled Counter-Strike 2 addon and publishes it to the Steam Workshop, as a new item or as an update of an existing one.
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons to upload.</param>
     /// <param name="title">-t, Title of the workshop item.</param>
@@ -33,14 +149,14 @@ public static class Manager
     /// <param name="description_file">Read the description from this text file instead.</param>
     /// <param name="changenote">-c, Change note, Defaults to "Created {title}." or "Edited {title}.".</param>
     /// <param name="changenote_file">Read the change note from this text file instead.</param>
-    /// <param name="thumbnail">-th, Disk path for the thumbnail, this will get re-encoded to Jpeg.</param>
+    /// <param name="thumbnail">-th, Disk path for the thumbnail.</param>
     /// <param name="visibility">-v, Visibility of the workshop item: public, friendsonly, private or unlisted.</param>
     /// <param name="tags">Comma separated list of workshop tags added after the "CS2" and "Map" tags. Map game modes are Classic, Deathmatch, Armsrace, Wingman and Custom.</param>
     /// <param name="tags_dangerous">Comma separated workshop tags used as the complete tag list, without "CS2" and "Map". Without those the item does not show up as a Counter-Strike 2 map in the workshop or in the game's map browsers.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
     /// <param name="stage_only">Only pack the addon into game/csgo_addons/vpks/{id}/ and do not talk to Steam. Requires --id.</param>
     /// <param name="force">Update the item even when its installed workshop content was published from a different addon folder.</param>
-    private static async Task<int> HandleArguments(
+    public static async Task<int> Upload(
         string addon,
         string title,
         ulong? id = default,
@@ -57,15 +173,14 @@ public static class Manager
         bool force = false
     )
     {
-        if (!Enum.TryParse<WorkshopVisibility>(visibility, ignoreCase: true, out var itemVisibility))
+        if (!TryParseVisibility(visibility, out var itemVisibility))
         {
-            Console.Error.WriteLine("Visibility must be one of: public, friendsonly, private, unlisted.");
             return 1;
         }
 
         if (tags != null && tags_dangerous != null)
         {
-            Console.Error.WriteLine("Do not use --tags with --tags_dangerous.");
+            await Console.Error.WriteLineAsync("Do not use --tags with --tags_dangerous.").ConfigureAwait(false);
             return 1;
         }
 
@@ -80,177 +195,508 @@ public static class Manager
             Console.WriteLine($"Warning: uploading with tags [{string.Join(", ", itemTags)}] without the `CS2` and `Map` tags the workshop manager always sets.");
         }
 
-        if (description != null && description_file != null)
+        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail))
         {
-            Console.Error.WriteLine("Do not use --description with --description_file.");
             return 1;
-        }
-
-        if (changenote != null && changenote_file != null)
-        {
-            Console.Error.WriteLine("Do not use --changenote with --changenote_file.");
-            return 1;
-        }
-
-        if (description_file != null)
-        {
-            if (!File.Exists(description_file))
-            {
-                Console.Error.WriteLine($"Description file \"{description_file}\" does not exist.");
-                return 1;
-            }
-
-            description = await File.ReadAllTextAsync(description_file);
-        }
-
-        if (changenote_file != null)
-        {
-            if (!File.Exists(changenote_file))
-            {
-                Console.Error.WriteLine($"Change note file \"{changenote_file}\" does not exist.");
-                return 1;
-            }
-
-            changenote = await File.ReadAllTextAsync(changenote_file);
-        }
-
-        if (thumbnail != null)
-        {
-            if (!File.Exists(thumbnail))
-            {
-                Console.Error.WriteLine($"Thumbnail image \"{thumbnail}\" does not exist.");
-                return 1;
-            }
-
-            try
-            {
-                WorkshopManager.ValidateThumbnailImage(thumbnail);
-            }
-            catch (InvalidDataException exception)
-            {
-                Console.Error.WriteLine(exception.Message);
-                return 1;
-            }
         }
 
         if (stage_only && id == null)
         {
-            Console.Error.WriteLine("--stage_only requires --id.");
+            await Console.Error.WriteLineAsync("--stage_only requires --id.").ConfigureAwait(false);
             return 1;
         }
 
-        WorkshopManager manager;
-
-        if (game != null)
+        return await Manager.RunAsync(async () =>
         {
-            if (!Directory.Exists(game))
+            var manager = Manager.OpenGame(game);
+            var addonPath = Manager.OpenAddon(manager, addon);
+
+            Console.WriteLine($"Game: {manager.GamePath}");
+            Console.WriteLine($"Addon: {addonPath}");
+
+            if (stage_only)
             {
-                Console.Error.WriteLine($"Game folder \"{game}\" does not exist.");
-                return 1;
+                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadRules(addon));
+
+                Console.WriteLine($"Staged: {stagingPath}");
+
+                foreach (var file in Directory.GetFiles(stagingPath))
+                {
+                    Console.WriteLine($"  {Path.GetFileName(file)} ({new FileInfo(file).Length:N0} bytes)");
+                }
+
+                return;
             }
 
-            manager = new WorkshopManager(Path.GetFullPath(game));
-        }
-        else
-        {
+            // the progress is written over itself on one line, which is ended whatever comes after it
+            var progressShown = false;
+
             try
             {
-                manager = WorkshopManager.FromSteamInstall();
+                if (force && id != null && WorkshopManager.GetConflictingSourceFolder(addon, id.Value) is string previousAddon)
+                {
+                    Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
+                }
+
+                var result = await manager.PublishAsync(new AddonPublishOptions
+                {
+                    AddonName = addon,
+                    PublishedFileId = id,
+                    Title = title,
+                    Description = description ?? string.Empty,
+                    Visibility = itemVisibility,
+                    Tags = itemTags,
+                    ThumbnailImagePath = thumbnail,
+                    ChangeNote = changenote,
+                    AllowSourceFolderChange = force,
+                }, new Progress<float>(progress =>
+                {
+                    progressShown = true;
+                    Console.Write($"\rUploading {progress:P0}   ");
+                })).ConfigureAwait(false);
+
+                PrintPublished(result);
             }
-            catch (DirectoryNotFoundException exception)
+            catch (SourceFolderConflictException exception)
             {
-                Console.Error.WriteLine(exception.Message);
+                throw new InvalidOperationException($"{exception.Message} Pass --force to update it anyway.", exception);
+            }
+            finally
+            {
+                if (progressShown)
+                {
+                    Console.WriteLine();
+                }
+            }
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Changes the provided info of a published item without uploading its files again.
+    /// </summary>
+    /// <param name="id">-i, Workshop ID of the submission to edit.</param>
+    /// <param name="title">-t, New title.</param>
+    /// <param name="description">-d, New description.</param>
+    /// <param name="description_file">Read the new description from this text file instead.</param>
+    /// <param name="thumbnail">-th, Disk path for a new thumbnail.</param>
+    /// <param name="visibility">-v, New visibility: public, friendsonly, private or unlisted.</param>
+    /// <param name="tags">Comma separated game mode tags to set, replacing the item's current game modes and keeping its other tags: Classic, Deathmatch, Armsrace, Wingman and Custom. Pass an empty string to clear them.</param>
+    /// <param name="changenote">-c, Change note, none by default.</param>
+    /// <param name="changenote_file">Read the change note from this text file instead.</param>
+    public static async Task<int> Edit(
+        ulong id,
+        string? title = default,
+        string? description = default,
+        string? description_file = default,
+        string? thumbnail = default,
+        string? visibility = default,
+        string? tags = default,
+        string? changenote = default,
+        string? changenote_file = default
+    )
+    {
+        WorkshopVisibility? itemVisibility = null;
+
+        if (visibility != null)
+        {
+            if (!TryParseVisibility(visibility, out var parsed))
+            {
                 return 1;
             }
+
+            itemVisibility = parsed;
         }
 
-        var addonPath = Path.Combine(manager.AddonsRoot, addon);
-
-        if (!Directory.Exists(addonPath))
+        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail))
         {
-            Console.Error.WriteLine($"Addon folder \"{addonPath}\" does not exist.");
             return 1;
         }
 
-        Console.WriteLine($"Game: {manager.GamePath}");
-        Console.WriteLine($"Addon: {addonPath}");
-
-        if (stage_only)
+        if (title == null && description == null && thumbnail == null && itemVisibility == null && tags == null)
         {
-            var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadRules(addon));
-
-            Console.WriteLine($"Staged: {stagingPath}");
-
-            foreach (var file in Directory.GetFiles(stagingPath))
-            {
-                Console.WriteLine($"  {Path.GetFileName(file)} ({new FileInfo(file).Length:N0} bytes)");
-            }
-
-            return 0;
+            await Console.Error.WriteLineAsync("Nothing to change, give at least one of --title, --description, --thumbnail, --visibility or --tags.").ConfigureAwait(false);
+            return 1;
         }
 
-        try
+        return await Manager.RunAsync(async () =>
         {
-            if (force && id != null && WorkshopManager.GetConflictingSourceFolder(addon, id.Value) is string previousAddon)
+            IReadOnlyList<string>? itemTags = null;
+
+            if (tags != null)
             {
-                Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
+                // the item's tags with its game modes swapped for the given ones, and "Map" put back should it have lost it
+                var item = await FindItemAsync(id).ConfigureAwait(false);
+                var modes = SplitTags(tags);
+
+                foreach (var mode in modes.Where(mode => !WorkshopManager.GameModeTags.Contains(mode, StringComparer.OrdinalIgnoreCase)))
+                {
+                    throw new ArgumentException($"\"{mode}\" is not a game mode, the game modes are {string.Join(", ", WorkshopManager.GameModeTags)}.");
+                }
+
+                var kept = item.Tags.Where(tag => !WorkshopManager.GameModeTags.Contains(tag, StringComparer.OrdinalIgnoreCase)).ToList();
+
+                if (!kept.Contains("Map", StringComparer.OrdinalIgnoreCase))
+                {
+                    kept.Add("Map");
+                }
+
+                itemTags = [.. kept, .. modes.Distinct(StringComparer.OrdinalIgnoreCase)];
             }
 
-            var result = await manager.PublishAsync(new AddonPublishOptions
+            var result = await new WorkshopManager(string.Empty).PublishAsync(new AddonPublishOptions
             {
-                AddonName = addon,
                 PublishedFileId = id,
                 Title = title,
-                Description = description ?? string.Empty,
+                Description = description,
                 Visibility = itemVisibility,
                 Tags = itemTags,
                 ThumbnailImagePath = thumbnail,
                 ChangeNote = changenote,
-                AllowSourceFolderChange = force,
-            }, new Progress<float>(progress => Console.Write($"\rUploading {progress:P0}   ")));
+            }).ConfigureAwait(false);
 
-            Console.WriteLine();
-            Console.WriteLine($"Published: {result.Url}");
+            PrintPublished(result);
+        }).ConfigureAwait(false);
+    }
 
-            if (result.NeedsWorkshopAgreement)
+    /// <summary>
+    /// Lists the workshop items the logged in Steam account has published, most recently updated first.
+    /// </summary>
+    public static async Task<int> List()
+    {
+        return await Manager.RunAsync(async () =>
+        {
+            Console.WriteLine($"{"ID",-11} {"Visibility",-12} {"Updated",-16} {"Size",10}  Title [Tags]");
+
+            var count = 0;
+
+            await foreach (var item in WorkshopManager.GetPublishedItemsAsync().ConfigureAwait(false))
             {
-                Console.WriteLine("The Steam Workshop legal agreement must be accepted before the item becomes visible.");
+                count++;
+                Console.WriteLine($"{item.PublishedFileId,-11} {VisibilityName(item.Visibility),-12} {item.TimeUpdated.ToLocalTime():yyyy-MM-dd HH:mm} {AddonContents.FormatSize(item.Size),10}  {item.Title} [{string.Join(", ", item.Tags)}]");
             }
-        }
-        catch (SourceFolderConflictException exception)
-        {
-            Console.Error.WriteLine($"{exception.Message} Pass --force to update it anyway.");
-            return 1;
-        }
-        catch (Exception exception)
-        {
-            Console.WriteLine();
-            Console.Error.WriteLine(exception.Message);
-            return 1;
-        }
-        finally
-        {
-            WorkshopManager.ShutdownSteam();
-        }
+
+            Console.WriteLine($"{count} published items");
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Opens a published item's workshop page in the browser.
+    /// </summary>
+    /// <param name="id">-i, Workshop ID of the submission.</param>
+    public static int View(ulong id)
+    {
+        var url = new WorkshopPublishResult(id, false).Url.ToString();
+
+        Console.WriteLine(url);
+
+        using var browser = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
         return 0;
+    }
+
+    /// <summary>
+    /// Deletes a published item from the workshop, which cannot be undone. Users subscribed to it will no longer be able to access it.
+    /// </summary>
+    /// <param name="id">-i, Workshop ID of the submission to delete.</param>
+    /// <param name="yes">-y, Delete without asking.</param>
+    public static async Task<int> Delete(ulong id, bool yes = false)
+    {
+        return await Manager.RunAsync(async () =>
+        {
+            var item = await FindItemAsync(id).ConfigureAwait(false);
+
+            if (!yes)
+            {
+                Console.Write($"Delete \"{item.Title}\" ({item.PublishedFileId}) from the workshop? This cannot be undone. Type yes to go ahead: ");
+
+                if (!string.Equals(Console.ReadLine()?.Trim(), "yes", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("Not deleted.");
+                    return;
+                }
+            }
+
+            await WorkshopManager.DeleteItemAsync(id).ConfigureAwait(false);
+
+            Console.WriteLine($"Deleted \"{item.Title}\" ({item.PublishedFileId}).");
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the addon folders under game/csgo_addons, and which one the running workshop tools have open.
+    /// </summary>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Addons(string? game = default)
+    {
+        return Manager.Run(() =>
+        {
+            var manager = Manager.OpenGame(game);
+            var open = WorkshopManager.GetRunningToolsAddon();
+
+            if (!string.IsNullOrEmpty(open))
+            {
+                Console.WriteLine($"Addon currently open in tools: \"{open}\"\n");
+            }
+
+            foreach (var addon in manager.GetAddonNames().Order(StringComparer.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(addon);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Shows what an addon would upload by asset type.
+    /// </summary>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Contents(string addon, string? game = default)
+    {
+        return Manager.Run(() =>
+        {
+            var manager = Manager.OpenGame(game);
+            var addonPath = Manager.OpenAddon(manager, addon);
+            var contents = AddonPackager.GetContents(addonPath, manager.GameInfoPath, manager.LoadRules(addon));
+
+            foreach (var assetType in contents.AssetTypes)
+            {
+                Console.WriteLine(contents.Describe(assetType));
+            }
+
+            Console.WriteLine(contents.Summary);
+
+            if (contents.ExceedsUploadLimit)
+            {
+                Console.WriteLine($"Warning: this exceeds the CS2 Workshop upload limit of {AddonContents.FormatSize(AddonPackager.MaxTotalSize)}.");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Lists all the files an addon would upload, with the packing rules applied, largest first.
+    /// </summary>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    /// <param name="all">Also list the files that are left out, marking each file [x] when it is uploaded and [ ] when not.</param>
+    public static int Files(string addon, string? game = default, bool all = false)
+    {
+        return Manager.Run(() =>
+        {
+            var manager = Manager.OpenGame(game);
+            var addonPath = Manager.OpenAddon(manager, addon);
+            var packed = AddonPackager.CollectFiles(addonPath, manager.GameInfoPath, manager.LoadRules(addon));
+            var packedPaths = packed.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var files = all ? AddonPackager.ListFiles(addonPath) : packed;
+
+            foreach (var file in files.OrderByDescending(file => file.Length).ThenBy(file => file.FullName, StringComparer.OrdinalIgnoreCase))
+            {
+                var mark = all ? (packedPaths.Contains(file.FullName) ? "[x] " : "[ ] ") : string.Empty;
+
+                Console.WriteLine($"{mark}{AddonContents.FormatSize(file.Length),12}  {AddonPackager.GetRelativePath(addonPath, file.FullName)}");
+            }
+
+            Console.WriteLine(all ? $"{packed.Count} of {files.Count} files are uploaded" : $"{packed.Count} files are uploaded");
+        });
+    }
+
+    /// <summary>One of the account's published items, by id.</summary>
+    internal static async Task<WorkshopItem> FindItemAsync(ulong id)
+    {
+        await foreach (var item in WorkshopManager.GetPublishedItemsAsync().ConfigureAwait(false))
+        {
+            if (item.PublishedFileId == id)
+            {
+                return item;
+            }
+        }
+
+        throw new InvalidOperationException($"Workshop item {id} is not one of the published items of the logged in account.");
+    }
+
+    private static void PrintPublished(WorkshopPublishResult result)
+    {
+        Console.WriteLine($"Published: {result.Url}");
+
+        if (result.NeedsWorkshopAgreement)
+        {
+            Console.WriteLine("The Steam Workshop legal agreement must be accepted before the item becomes visible.");
+        }
+    }
+
+    private static bool TryParseVisibility(string visibility, out WorkshopVisibility parsed)
+    {
+        if (Enum.TryParse(visibility, ignoreCase: true, out parsed))
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine("Visibility must be one of: public, friendsonly, private, unlisted.");
+        return false;
+    }
+
+    private static string VisibilityName(WorkshopVisibility visibility)
+    {
+        return visibility == WorkshopVisibility.FriendsOnly ? "Friends Only" : visibility.ToString();
+    }
+
+    /// <summary>Takes <paramref name="text"/> from <paramref name="file"/> when that was given instead, and says no when both were or the file is missing.</summary>
+    private static bool TryReadText(ref string? text, string? file, string what)
+    {
+        if (file == null)
+        {
+            return true;
+        }
+
+        if (text != null)
+        {
+            Console.Error.WriteLine($"Do not give the {what} both directly and as a file.");
+            return false;
+        }
+
+        if (!File.Exists(file))
+        {
+            Console.Error.WriteLine($"{char.ToUpperInvariant(what[0])}{what[1..]} file \"{file}\" does not exist.");
+            return false;
+        }
+
+        text = File.ReadAllText(file);
+        return true;
+    }
+
+    private static bool TryCheckThumbnail(string? thumbnail)
+    {
+        if (thumbnail == null)
+        {
+            return true;
+        }
+
+        if (!File.Exists(thumbnail))
+        {
+            Console.Error.WriteLine($"Thumbnail image \"{thumbnail}\" does not exist.");
+            return false;
+        }
+
+        try
+        {
+            WorkshopManager.ValidateThumbnailImage(thumbnail);
+            return true;
+        }
+        catch (InvalidDataException exception)
+        {
+            Console.Error.WriteLine(exception.Message);
+            return false;
+        }
     }
 
     private static string[] SplitTags(string? tags)
     {
         return tags?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
     }
+}
 
-    private static string GetVersion()
+/// <summary>
+/// Custom include and exclude rules for an addon, kept in publish_rules.txt in its addon content root folder and applied ahead of gameinfo's when it is packed.
+/// </summary>
+public static class RulesCommands
+{
+    /// <summary>
+    /// Lists an addon's rules in the order they apply, the first matching rule deciding for a path.
+    /// </summary>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int List(string addon, string? game = default)
     {
-        var info = new StringBuilder();
-        info.Append("Version: ");
-        info.AppendLine(typeof(Manager).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
-        info.Append("OS: ");
-        info.Append(RuntimeInformation.OSDescription);
-        info.Append(" (");
-        info.Append(RuntimeInformation.OSArchitecture.ToString());
-        info.Append(')');
-        return info.ToString();
+        return Change(addon, game, rules =>
+        {
+            foreach (var rule in rules.Rules)
+            {
+                Console.WriteLine($"{(rule.Exclude ? "exclude" : "include"),-8} {rule.Pattern}");
+            }
+
+            Console.WriteLine($"{rules.Rules.Count} rules in {AddonRules.FileName}");
+
+            return false;
+        });
+    }
+
+    /// <summary>
+    /// Keeps a file or folder out of the upload. The rule goes first, so it wins over the rules before it and over gameinfo.
+    /// </summary>
+    /// <param name="pattern">Path under the addon the rule starts with, a folder ending in a slash such as materials/dev/.</param>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Exclude([Argument] string pattern, string addon, string? game = default)
+    {
+        return Change(addon, game, rules => Insert(rules, new AddonRules.Rule(true, pattern)));
+    }
+
+    /// <summary>
+    /// Brings a file or folder into the upload that gameinfo or an earlier rule keeps out. The rule goes first, so it wins over the rules before it and over gameinfo.
+    /// </summary>
+    /// <param name="pattern">Path under the addon the rule starts with, a folder ending in a slash such as materials/dev/.</param>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Include([Argument] string pattern, string addon, string? game = default)
+    {
+        return Change(addon, game, rules => Insert(rules, new AddonRules.Rule(false, pattern)));
+    }
+
+    /// <summary>
+    /// Removes the rules for a path, whichever way they go.
+    /// </summary>
+    /// <param name="pattern">The path of the rules to remove, as they were given.</param>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Remove([Argument] string pattern, string addon, string? game = default)
+    {
+        return Change(addon, game, rules =>
+        {
+            var normalized = AddonRules.Normalize(pattern);
+            var removed = rules.Rules.RemoveAll(rule => rule.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+
+            if (removed == 0)
+            {
+                throw new InvalidOperationException($"There is no rule for \"{normalized}\".");
+            }
+
+            Console.WriteLine($"Removed {removed} rule{(removed == 1 ? "" : "s")} for {normalized}.");
+
+            return true;
+        });
+    }
+
+    /// <summary>Puts the rule first, after taking out any earlier rule for the same path, so the newest rule wins.</summary>
+    private static bool Insert(AddonRules rules, AddonRules.Rule rule)
+    {
+        var normalized = AddonRules.Normalize(rule.Pattern);
+
+        if (normalized.Length == 0)
+        {
+            throw new ArgumentException("The pattern is empty.");
+        }
+
+        rules.Rules.RemoveAll(existing => existing.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        rules.Rules.Insert(0, new AddonRules.Rule(rule.Exclude, normalized));
+
+        Console.WriteLine($"{(rule.Exclude ? "Excluded" : "Included")} {normalized}.");
+
+        return true;
+    }
+
+    /// <summary>Loads the addon's rules for <paramref name="change"/>, which says whether they need saving.</summary>
+    private static int Change(string addon, string? game, Func<AddonRules, bool> change)
+    {
+        return Manager.Run(() =>
+        {
+            var manager = Manager.OpenGame(game);
+            Manager.OpenAddon(manager, addon);
+
+            var rules = manager.LoadRules(addon);
+
+            if (change(rules))
+            {
+                manager.SaveRules(addon, rules);
+            }
+        });
     }
 }

@@ -4,11 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
-    <Description>Command line Counter-Strike 2 workshop manager</Description>
+    <Description>Command line Counter-Strike 2 Workshop manager</Description>
     <AssemblyName>CS2WorkshopManager-CLI</AssemblyName>
     <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
-    <NoWarn>$(NoWarn);CA1849;CA2007</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ConsoleAppFramework" Version="5.7.13">
