@@ -47,9 +47,11 @@ public partial class MainWindow : Window
         TileItems.ItemsSource = shown;
         Loaded += OnLoaded;
 
-        // before the right click menu opens, the item under the pointer is the selected one
+        // before the right click menu opens, the item under the pointer is the selected one, and a double click opens it for re-upload
         PublishedItems.AddHandler(PointerPressedEvent, OnItemPressed, RoutingStrategies.Tunnel);
         TileItems.AddHandler(PointerPressedEvent, OnItemPressed, RoutingStrategies.Tunnel);
+        PublishedItems.AddHandler(DoubleTappedEvent, OnItemDoubleTapped, handledEventsToo: true);
+        TileItems.AddHandler(DoubleTappedEvent, OnItemDoubleTapped, handledEventsToo: true);
     }
 
     /// <summary>
@@ -59,22 +61,41 @@ public partial class MainWindow : Window
     {
         var properties = e.GetCurrentPoint(this).Properties;
 
-        if (!(properties.IsLeftButtonPressed || properties.IsRightButtonPressed) || e.Source is not Visual source)
+        if (!(properties.IsLeftButtonPressed || properties.IsRightButtonPressed) || e.Source is not Visual source || ItemOf(sender, source) is not { } row)
         {
             return;
         }
 
         if (sender == PublishedItems)
         {
-            if (source.FindAncestorOfType<DataGridRow>() is { } row)
-            {
-                PublishedItems.SelectedItem = row.DataContext;
-            }
+            PublishedItems.SelectedItem = row;
         }
-        else if (source.FindAncestorOfType<ListBoxItem>() is { } tile)
+        else
         {
-            TileItems.SelectedItem = tile.DataContext;
+            TileItems.SelectedItem = row;
         }
+    }
+
+    /// <summary>
+    /// A double click on an item opens it for re-upload, the click before it having selected it. The list's headers and empty space are left to what they do.
+    /// </summary>
+    private async void OnItemDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Source is not Visual source || ItemOf(sender, source) is not { } row)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        await OpenSubmissionAsync(SubmissionMode.ReUpload, row);
+    }
+
+    /// <summary>The item that a visual in the list or in the tiles belongs to, null for a visual outside the items, like a column header.</summary>
+    private WorkshopItemRow? ItemOf(object? sender, Visual source)
+    {
+        var container = sender == PublishedItems ? source.FindAncestorOfType<DataGridRow>() : (Control?)source.FindAncestorOfType<ListBoxItem>();
+
+        return container?.DataContext as WorkshopItemRow;
     }
 
     /// <summary>
