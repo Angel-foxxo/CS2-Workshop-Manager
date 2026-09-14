@@ -175,7 +175,9 @@ public partial class AddonFilesWindow : Window
         }
 
         // a rescan after a rule change keeps the last count up until the new one is ready, instead of flashing through "Scanning"
-        if (addon != name)
+        var switched = addon != name;
+
+        if (switched)
         {
             Status.Text = $"Scanning {name}...";
         }
@@ -189,7 +191,7 @@ public partial class AddonFilesWindow : Window
         {
             rules = manager.LoadRules(name);
             autoRules = manager.LoadAutoRules(name);
-            ShowMaps(addonPath);
+            ShowMaps(addonPath, switched ? null : SelectedMap);
 
             // what the addon is packed by, the same way a publish works it out, and what it would pack had nothing been generated
             var current = manager.LoadPackingRules(name);
@@ -271,19 +273,20 @@ public partial class AddonFilesWindow : Window
     }
 
     /// <summary>
-    /// Fills the map box with the addon's compiled maps, the one named after the addon first and picked, and turns the whole thing off when it has none.
-    /// Which map is picked is not remembered, an addon almost always being about the map that carries its name.
+    /// Fills the map box with the addon's compiled maps and turns the whole thing off when the addon has none. What is picked is what
+    /// <paramref name="keep"/> asks for, then the map a standing list was made from, and otherwise the one carrying the addon's name.
     /// </summary>
-    private void ShowMaps(string addonPath)
+    /// <param name="keep">The map to stay on, for a rescan of the same addon, or null when the addon has changed under it.</param>
+    private void ShowMaps(string addonPath, string? keep)
     {
         var maps = AddonUsage.FindMaps(addonPath);
 
-        // a rescan after generating keeps the map that was picked, which is the one the list now standing was made from
-        var picked = SelectedMap;
+        var picked = new[] { keep, autoRules.Map }
+            .FirstOrDefault(map => map != null && maps.Contains(map, StringComparer.OrdinalIgnoreCase)) ?? maps.FirstOrDefault();
 
         showingMaps = true;
         MapBox.ItemsSource = maps;
-        MapBox.SelectedItem = picked != null && maps.Contains(picked, StringComparer.OrdinalIgnoreCase) ? picked : maps.FirstOrDefault();
+        MapBox.SelectedItem = picked;
         showingMaps = false;
 
         MapBox.IsEnabled = maps.Count > 0;

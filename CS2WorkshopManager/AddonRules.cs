@@ -19,11 +19,17 @@ public sealed class AddonRules
 
     private const string ExcludeKey = "exclude";
     private const string IncludeKey = "include";
+    private const string MapKey = "map";
 
     /// <summary>A path prefix to keep out of, or in, the upload.</summary>
     public readonly record struct Rule(bool Exclude, string Pattern);
 
     public List<Rule> Rules { get; } = [];
+
+    /// <summary>
+    /// For a generated block, the map the rules were made from, so that they can be made again from the same one. Null for rules the user made.
+    /// </summary>
+    public string? Map { get; set; }
 
     public static string GetPath(string contentRoot, string addonName)
     {
@@ -97,6 +103,12 @@ public sealed class AddonRules
     {
         foreach (var child in block.Children)
         {
+            if (child.Key.Equals(MapKey, StringComparison.OrdinalIgnoreCase))
+            {
+                Map = Normalize((string)child.Value);
+                continue;
+            }
+
             var exclude = child.Key.Equals(ExcludeKey, StringComparison.OrdinalIgnoreCase);
 
             if (exclude || child.Key.Equals(IncludeKey, StringComparison.OrdinalIgnoreCase))
@@ -110,6 +122,11 @@ public sealed class AddonRules
     internal KVObject Write()
     {
         var data = KVObject.ListCollection();
+
+        if (Map != null)
+        {
+            data.Add(MapKey, Map);
+        }
 
         foreach (var rule in Rules)
         {

@@ -275,7 +275,8 @@ public sealed class WorkshopManager
             .OrderByDescending(path => packed[path])
             .ToList();
 
-        var auto = new AddonRules();
+        // a crawl that found a map always lists it first, that being the one it started from
+        var auto = new AddonRules { Map = found.Maps[0] };
         auto.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
 
         SaveAutoRules(addonName, auto);
@@ -706,6 +707,12 @@ public sealed class WorkshopManager
         var publishedFileId = options.PublishedFileId ?? await CreateItemAsync().ConfigureAwait(false);
 
         var publishTime = DateTimeOffset.UtcNow;
+
+        // a generated list is only as true as the map it was read from, so an addon using one has it made again from that same map before packing
+        if (options.AddonName != null && LoadAutoRules(options.AddonName) is { Rules.Count: > 0 } generated)
+        {
+            GenerateAutoRules(options.AddonName, generated.Map);
+        }
 
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
         var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName) : options.Rules.Then(LoadPackingRules(options.AddonName)));
