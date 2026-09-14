@@ -24,6 +24,7 @@ public partial class App : Application
             catch (Exception)
             {
                 // a settings file that can not be read leaves the system theme, and is reported in the settings window
+                ApplyTheme(AppTheme.System);
             }
 
             desktop.MainWindow = new MainWindow();
