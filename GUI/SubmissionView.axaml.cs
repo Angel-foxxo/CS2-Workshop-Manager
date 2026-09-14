@@ -11,6 +11,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using CS2WorkshopManager;
+using SkiaSharp;
 using Steamworks;
 
 namespace GUI;
@@ -96,6 +97,12 @@ public partial class SubmissionView : UserControl
     /// <summary>The image picked for the preview, null keeps whatever the item has.</summary>
     private string? thumbnailPath;
 
+    /// <summary>Whether the slot holds the drawn default thumbnail, which follows the addon until a picture is picked or the slot cleared.</summary>
+    private bool defaultThumbnail;
+
+    /// <summary>Which drawing of the default thumbnail is the latest asked for, so an earlier one still under way does not land after it.</summary>
+    private int defaultThumbnailRun;
+
     /// <summary>The gallery as shown: the item's entries that were not removed, and the ones added here, in the order they are to have.</summary>
     private readonly ObservableCollection<GalleryEntry> gallery = [];
 
@@ -169,11 +176,7 @@ public partial class SubmissionView : UserControl
         }
 
         SetPreview(row?.Preview == null ? null : PreviewImage.Decode(row.Preview));
-
-        if (mode == SubmissionMode.New)
-        {
-            ShowDefaultThumbnail();
-        }
+        defaultThumbnail = mode == SubmissionMode.New;
 
         gallery.Clear();
 
@@ -209,6 +212,12 @@ public partial class SubmissionView : UserControl
 
                 AddonBox.ItemsSource = addons;
                 AddonBox.SelectedItem = addon == null ? null : addons.Find(name => name.Equals(addon, StringComparison.OrdinalIgnoreCase));
+
+                // with an addon chosen its change draws the thumbnail, without one it is drawn here over the gradient
+                if (defaultThumbnail && AddonBox.SelectedItem == null)
+                {
+                    _ = ShowDefaultThumbnailAsync();
+                }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -286,6 +295,11 @@ public partial class SubmissionView : UserControl
 
     private async void OnAddonChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (defaultThumbnail)
+        {
+            _ = ShowDefaultThumbnailAsync();
+        }
+
         await ScanAddonAsync();
     }
 
@@ -348,26 +362,77 @@ public partial class SubmissionView : UserControl
         PreviewHint.IsVisible = source == null;
     }
 
-    /// <summary>Puts the drawn default thumbnail in the slot, as a picked file would go, or leaves the slot empty when it can not be drawn or written.</summary>
-    private void ShowDefaultThumbnail()
+    /// <summary>
+    /// Puts the drawn default thumbnail in the slot, as a picked file would go: over a look at the chosen addon's map when it has one with a cubemap,
+    /// otherwise over the gradient. Leaves the slot as it is when the drawing can not be written.
+    /// </summary>
+    private async Task ShowDefaultThumbnailAsync()
     {
+        var run = ++defaultThumbnailRun;
+        var addon = AddonBox.SelectedItem as string;
+        var manager = this.manager;
+        SKBitmap? map = null;
+
         try
         {
-            var path = DefaultThumbnail.Render();
+            if (manager != null && addon != null)
+            {
+                // the map is read and drawn off the window's thread, and dropped for the gradient when it can not be
+                map = await Task.Run(() =>
+                {
+                    try
+                    {
+                        // the addon's maps in order, until one has a view that is not obviously bad
+                        foreach (var mapPath in MapCubemap.FindMaps(manager, addon))
+                        {
+                            try
+                            {
+                                if (MapCubemap.View(mapPath, DefaultThumbnail.Width, DefaultThumbnail.Height) is SKBitmap view)
+                                {
+                                    return view;
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                // a map that can not be read is passed over for the next
+                            }
+                        }
+
+                        return null;
+                    }
+                    catch (Exception)
+                    {
+                        return null;
+                    }
+                });
+            }
+
+            // the addon moved on, or a picture was picked, while the map was read
+            if (run != defaultThumbnailRun || !defaultThumbnail)
+            {
+                return;
+            }
+
+            var path = DefaultThumbnail.Render(map);
 
             thumbnailPath = path;
             PreviewPath.Text = path;
             PreviewPath.IsVisible = true;
-            SetPreview(PreviewImage.Decode(File.ReadAllBytes(path)));
+            SetPreview(PreviewImage.Decode(await File.ReadAllBytesAsync(path)));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             Status.Text = exception.Message;
         }
+        finally
+        {
+            map?.Dispose();
+        }
     }
 
     private void OnClearPreview(object? sender, RoutedEventArgs e)
     {
+        defaultThumbnail = false;
         thumbnailPath = null;
         SetPreview(null);
         PreviewPath.IsVisible = false;
@@ -410,6 +475,7 @@ public partial class SubmissionView : UserControl
 
             var file = await File.ReadAllBytesAsync(path);
 
+            defaultThumbnail = false;
             thumbnailPath = path;
             PreviewPath.Text = path;
             PreviewPath.IsVisible = true;
