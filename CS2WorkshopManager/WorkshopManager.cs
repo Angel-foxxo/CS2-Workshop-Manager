@@ -219,11 +219,12 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win, then the addon's own.
+    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win,
+    /// then the addon's own, and last the generated ones, which every rule the user made therefore wins over.
     /// </summary>
     public AddonRules LoadPackingRules(string addonName)
     {
-        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
+        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName)).Then(LoadAutoRules(addonName));
     }
 
     /// <summary>The rules a crawl of <paramref name="addonName"/>'s map generated, none when nothing has been generated for it.</summary>
