@@ -89,7 +89,7 @@
                                     <CheckBox Name="ExcludeUnused" Content="Exclude unused content" VerticalAlignment="Center" Click="OnExcludeUnusedChanged" />
                                 </DockPanel>
                                 <TextBlock Name="UnusedNotice" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
-                                           Text="The program searches for the assets used in the selected vpk file. Be careful using this feature, because it has limitations in specific scenarios like scripts: your scripts must have clean path names to be parsed correctly." />
+                                           Text="The program searches for the assets used in the selected vpk file. Be careful using this feature, because it has limitations in specific scenarios like scripts: you must have clean path names to be parsed correctly." />
                             </StackPanel>
                         </Border>
 
