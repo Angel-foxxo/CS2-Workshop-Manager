@@ -100,6 +100,12 @@ public static class WindowAccent
         });
     }
 
+    /// <summary>The centre of the gradient a window with <paramref name="accent"/> is painted with, over <paramref name="main"/>.</summary>
+    public static Color GradientCenter(Color main, Color accent)
+    {
+        return Mix(main, accent, GradientMix);
+    }
+
     public static Color GetColor(Window window)
     {
         return window.GetValue(ColorProperty);

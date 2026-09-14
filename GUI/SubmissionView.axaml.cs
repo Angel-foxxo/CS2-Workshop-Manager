@@ -170,6 +170,11 @@ public partial class SubmissionView : UserControl
 
         SetPreview(row?.Preview == null ? null : PreviewImage.Decode(row.Preview));
 
+        if (mode == SubmissionMode.New)
+        {
+            ShowDefaultThumbnail();
+        }
+
         gallery.Clear();
 
         if (item != null)
@@ -341,6 +346,24 @@ public partial class SubmissionView : UserControl
     {
         Preview.Source = source;
         PreviewHint.IsVisible = source == null;
+    }
+
+    /// <summary>Puts the drawn default thumbnail in the slot, as a picked file would go, or leaves the slot empty when it can not be drawn or written.</summary>
+    private void ShowDefaultThumbnail()
+    {
+        try
+        {
+            var path = DefaultThumbnail.Render();
+
+            thumbnailPath = path;
+            PreviewPath.Text = path;
+            PreviewPath.IsVisible = true;
+            SetPreview(PreviewImage.Decode(File.ReadAllBytes(path)));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Status.Text = exception.Message;
+        }
     }
 
     private void OnClearPreview(object? sender, RoutedEventArgs e)
