@@ -5,7 +5,7 @@ using Avalonia.Media;
 namespace GUI;
 
 /// <summary>
-/// Five stars filled from the left by a value out of five, a star partly filled for the fraction, unlike the workshop page which rounds up to whole stars.
+/// Five stars filled from the left by a value out of five, a star partly filled for any fraction.
 /// </summary>
 public sealed class StarRating : Control
 {

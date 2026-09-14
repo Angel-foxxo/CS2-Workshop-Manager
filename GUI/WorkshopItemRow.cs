@@ -116,11 +116,17 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
         new(Counted(Item.Favorites, "fav", compact: true), false),
     ];
 
-    /// <summary>Steam's vote score as stars out of five, filled by the score itself rather than rounded up to whole stars the way the workshop page shows them.</summary>
-    public double Stars => Item.Score * 5;
+    /// <summary>Steam's vote score out of five, before any rounding.</summary>
+    public double Rating => Item.Score * 5;
 
-    /// <summary>The stars in words with the votes behind them, for the tooltip.</summary>
-    public string RatingText => Item.Likes + Item.Dislikes == 0 ? "No votes yet" : $"{Stars:0.0} of 5 stars, from {Counted(Item.Likes, "like", compact: false)} and {Counted(Item.Dislikes, "dislike", compact: false)}";
+    /// <summary>The rating as whole stars, rounded up the way the workshop page shows them.</summary>
+    public double Stars => Math.Ceiling(Rating);
+
+    /// <summary>The rating itself, written after the stars, nothing while there are no votes.</summary>
+    public string RatingValue => Item.Likes + Item.Dislikes == 0 ? string.Empty : Rating.ToString("0.000", CultureInfo.CurrentCulture);
+
+    /// <summary>The rating in words with the votes behind it, for the tooltip.</summary>
+    public string RatingText => Item.Likes + Item.Dislikes == 0 ? "No votes yet" : $"{Rating:0.000} of 5, from {Counted(Item.Likes, "like", compact: false)} and {Counted(Item.Dislikes, "dislike", compact: false)}";
 
     /// <summary>The same counts in full, for the tooltip.</summary>
     public string StatsExact => $"{Counted(Item.Subscribers, "subscriber", compact: false)} | {Counted(Item.Views, "view", compact: false)} | {Counted(Item.Likes, "like", compact: false)} | {Counted(Item.Dislikes, "dislike", compact: false)} | {Counted(Item.Favorites, "favourite", compact: false)}";
