@@ -757,11 +757,25 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// Throws when the file is not an image stb can decode.
+    /// Throws when the file is not an image or gif stb can decode.
+    /// For gifs lets just upload them undecoded.. :aga:
     /// </summary>
     public static void ValidateThumbnailImage(string path)
     {
+        if (IsGifFile(path))
+        {
+            return;
+        }
+
         DecodeThumbnailImage(path);
+    }
+
+    private static bool IsGifFile(string path)
+    {
+        using var stream = File.OpenRead(path);
+
+        Span<byte> header = stackalloc byte[4];
+        return stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length && header.SequenceEqual("GIF8"u8);
     }
 
     private static ImageResult DecodeThumbnailImage(string path)
@@ -772,7 +786,7 @@ public sealed class WorkshopManager
         {
             return ImageResult.FromStream(stream, StbImageSharp.ColorComponents.RedGreenBlue);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is InvalidOperationException or IndexOutOfRangeException or ArgumentException or OverflowException or NullReferenceException)
         {
             throw new InvalidDataException($"Thumbnail image '{path}' could not be decoded: {exception.Message.Trim()}", exception);
         }
@@ -783,25 +797,17 @@ public sealed class WorkshopManager
     /// </summary>
     private static string WriteThumbnail(string sourcePath, ulong publishedFileId, DateTimeOffset time)
     {
-        var image = DecodeThumbnailImage(sourcePath);
-
         var directory = Path.Combine(Path.GetTempPath(), $"workshopupload_{publishedFileId}");
         Directory.CreateDirectory(directory);
 
-        Span<byte> header = stackalloc byte[4];
-        bool isGif;
-
-        using (var source = File.OpenRead(sourcePath))
-        {
-            isGif = source.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length && header.SequenceEqual("GIF8"u8);
-        }
-
-        if (isGif)
+        if (IsGifFile(sourcePath))
         {
             var gifPath = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.gif");
             File.Copy(sourcePath, gifPath, overwrite: true);
             return gifPath;
         }
+
+        var image = DecodeThumbnailImage(sourcePath);
 
         var path = Path.Combine(directory, $"thumbnail_{time.ToUnixTimeSeconds():x}.jpg");
 
