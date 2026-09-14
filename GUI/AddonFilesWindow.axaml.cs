@@ -106,7 +106,6 @@ public partial class AddonFilesWindow : Window
     private readonly WorkshopManager manager;
 
     private AddonRules rules = new();
-    private AppSettings settings = new();
     private string? addon;
 
     /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
@@ -180,10 +179,9 @@ public partial class AddonFilesWindow : Window
         try
         {
             rules = manager.LoadRules(name);
-            settings = AppSettings.Load();
 
-            // the addon is packed by the global rules and then its own
-            var current = settings.GlobalRules.Then(rules);
+            // what the addon is packed by, the same way a publish works it out
+            var current = manager.LoadPackingRules(name);
             var (packed, all) = await Task.Run(() =>
             {
                 var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, current);
