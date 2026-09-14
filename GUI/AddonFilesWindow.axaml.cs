@@ -105,7 +105,11 @@ public partial class AddonFilesWindow : Window
 {
     private readonly WorkshopManager manager;
 
+    /// <summary>How many generated rules are listed before the rest are only counted, there being far too many to read.</summary>
+    private const int MaxShownAutoRules = 100;
+
     private AddonRules rules = new();
+    private AddonRules autoRules = new();
     private string? addon;
 
     /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
@@ -162,6 +166,8 @@ public partial class AddonFilesWindow : Window
             Contents.Contents = null;
             RulesList.ItemsSource = null;
             FilesTree.ItemsSource = null;
+            autoRules = new AddonRules();
+            ShowAutoRules(0);
             return;
         }
 
@@ -179,10 +185,12 @@ public partial class AddonFilesWindow : Window
         try
         {
             rules = manager.LoadRules(name);
+            autoRules = manager.LoadAutoRules(name);
 
-            // what the addon is packed by, the same way a publish works it out
+            // what the addon is packed by, the same way a publish works it out, and what it would pack had nothing been generated
             var current = manager.LoadPackingRules(name);
-            var (packed, all) = await Task.Run(() =>
+            var withoutGenerated = autoRules.Rules.Count == 0 ? null : manager.LoadUserPackingRules(name);
+            var (packed, all, generatedSize) = await Task.Run(() =>
             {
                 var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, current);
                 var packedPaths = packedFiles.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -191,7 +199,14 @@ public partial class AddonFilesWindow : Window
                     .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                return (packedFiles, every);
+                // what the generated rules took out is what the user's own rules would have packed and these do not
+                var taken = withoutGenerated == null
+                    ? 0
+                    : AddonPackager.CollectFiles(addonPath, gameInfoPath, withoutGenerated)
+                        .Where(file => !packedPaths.Contains(file.FullName))
+                        .Sum(file => file.Length);
+
+                return (packedFiles, every, taken);
             });
 
             // the selection moved on while this addon was scanned
@@ -202,6 +217,7 @@ public partial class AddonFilesWindow : Window
 
             Contents.Contents = AddonContents.FromFiles(packed);
             RulesList.ItemsSource = rules.Rules.Select(rule => new RuleRow(rule)).ToList();
+            ShowAutoRules(generatedSize);
 
             // the same files as before only change their ticks and sizes, which the game rewrites as it runs, so the tree keeps its nodes, its scroll and what is expanded
             if (files.Count == all.Count && files.Zip(all).All(pair => pair.First.RelativePath == pair.Second.Path))
@@ -248,6 +264,25 @@ public partial class AddonFilesWindow : Window
             // the rules file is hand editable too, so its parser's own errors are reported like the file system's
             Status.Text = exception.Message;
         }
+    }
+
+    /// <summary>
+    /// Shows the generated rules and what they take out of the upload, or nothing at all when none have been generated for the addon.
+    /// Only the first of them are listed, since a crawl writes a rule per file and there can be thousands.
+    /// </summary>
+    private void ShowAutoRules(long takenSize)
+    {
+        AutoSection.IsVisible = autoRules.Rules.Count > 0;
+
+        if (!AutoSection.IsVisible)
+        {
+            AutoRulesList.ItemsSource = null;
+            return;
+        }
+
+        AutoSummary.Text = $"{autoRules.Rules.Count} rules, {AddonContents.FormatSize(takenSize)} kept out";
+        AutoRulesList.ItemsSource = autoRules.Rules.Take(MaxShownAutoRules).Select(rule => new RuleRow(rule)).ToList();
+        AutoMore.Text = autoRules.Rules.Count > MaxShownAutoRules ? $"{autoRules.Rules.Count - MaxShownAutoRules} more" : string.Empty;
     }
 
     /// <summary>

@@ -36,22 +36,43 @@
             <Grid ColumnDefinitions="2*,12,3*">
                 <!-- the user's rules, saved as they change -->
                 <Border Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
-                        <ScrollViewer>
-                            <ItemsControl Name="RulesList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:RuleRow">
-                                        <DockPanel Margin="0,4">
-                                            <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
-                                            <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
-                                            <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </DockPanel>
+                    <Grid RowDefinitions="Auto,*">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
+                            <ScrollViewer MaxHeight="220">
+                                <ItemsControl Name="RulesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RuleRow">
+                                            <DockPanel Margin="0,4">
+                                                <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
+                                                <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                                <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+
+                        <!-- what a crawl of the map wrote, shown but not edited: a tick in the tree is what overrules one of these -->
+                        <DockPanel Grid.Row="1" Name="AutoSection" Margin="0,12,0,0">
+                            <TextBlock DockPanel.Dock="Top" Text="Rules (Auto)" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
+                            <TextBlock DockPanel.Dock="Top" Name="AutoSummary" Margin="0,2,0,8" Foreground="{DynamicResource ContrastSoftBrush}" />
+                            <TextBlock DockPanel.Dock="Bottom" Name="AutoMore" Margin="0,4,0,0" Foreground="{DynamicResource ContrastSoftBrush}" />
+                            <ScrollViewer>
+                                <ItemsControl Name="AutoRulesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RuleRow">
+                                            <DockPanel Margin="0,2">
+                                                <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                                <TextBlock Text="{Binding Pattern}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Grid>
                 </Border>
 
                 <!-- every folder and file under the addon, ticked when the upload takes it -->

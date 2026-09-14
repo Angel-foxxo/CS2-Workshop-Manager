@@ -224,7 +224,15 @@ public sealed class WorkshopManager
     /// </summary>
     public AddonRules LoadPackingRules(string addonName)
     {
-        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName)).Then(LoadAutoRules(addonName));
+        return LoadUserPackingRules(addonName).Then(LoadAutoRules(addonName));
+    }
+
+    /// <summary>
+    /// The same without the generated rules, which is what an upload would pack if nothing had been generated, and so what a generated list is measured against.
+    /// </summary>
+    public AddonRules LoadUserPackingRules(string addonName)
+    {
+        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
     }
 
     /// <summary>The rules a crawl of <paramref name="addonName"/>'s map generated, none when nothing has been generated for it.</summary>
