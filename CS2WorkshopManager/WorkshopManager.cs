@@ -52,6 +52,9 @@ public sealed record AddonPublishOptions
 
     /// <summary> Update the item even when the workshop content was published from a different addon folder, otherwise <see cref="SourceFolderConflictException"/> is thrown. </summary>
     public bool AllowSourceFolderChange { get; init; }
+
+    /// <summary> Packing rules for this publish alone, checked before the addon's own rules and the global ones, for an upload that should leave out or bring in more than they do. Null for none. </summary>
+    public AddonRules? Rules { get; init; }
 }
 
 public sealed record WorkshopPublishResult(ulong PublishedFileId, bool NeedsWorkshopAgreement)
@@ -651,7 +654,7 @@ public sealed class WorkshopManager
         var publishTime = DateTimeOffset.UtcNow;
 
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, LoadPackingRules(options.AddonName));
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName) : options.Rules.Then(LoadPackingRules(options.AddonName)));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);
