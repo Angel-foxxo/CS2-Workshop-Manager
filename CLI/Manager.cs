@@ -144,8 +144,8 @@ public static class Commands
     /// Packs a compiled Counter-Strike 2 addon and publishes it to the Steam Workshop, as a new item or as an update of an existing one.
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons to upload.</param>
-    /// <param name="title">-t, Title of the workshop item.</param>
-    /// <param name="id">-i, Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission, which keeps its description, visibility and tags unless they are given.</param>
+    /// <param name="title">-t, Title of the workshop item, needed for a new one.</param>
+    /// <param name="id">-i, Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission, which keeps its title, description, visibility and tags unless they are given.</param>
     /// <param name="description">-d, Description of the workshop item.</param>
     /// <param name="description_file">Read the description from this text file instead.</param>
     /// <param name="changenote">-c, Change note, Defaults to "Created {title}." or "Edited {title}.".</param>
@@ -161,7 +161,7 @@ public static class Commands
     /// <param name="force">Update the item even when its installed workshop content was published from a different addon folder.</param>
     public static async Task<int> Upload(
         string addon,
-        string title,
+        string? title = default,
         ulong? id = default,
         string? description = default,
         string? description_file = default,
@@ -219,6 +219,12 @@ public static class Commands
             return 1;
         }
 
+        if (id == null && string.IsNullOrWhiteSpace(title))
+        {
+            await Console.Error.WriteLineAsync("A new item needs --title.").ConfigureAwait(false);
+            return 1;
+        }
+
         return await Manager.RunAsync(async () =>
         {
             var manager = Manager.OpenGame(game);
@@ -229,7 +235,7 @@ public static class Commands
 
             if (stage_only)
             {
-                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon));
+                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title ?? string.Empty, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon));
 
                 Console.WriteLine($"Staged: {stagingPath}");
 
@@ -251,17 +257,17 @@ public static class Commands
                     Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
                 }
 
-                // an existing item keeps its description, visibility, tags and gallery, the last with what is added after it, a new item starts private with what is given
-                var item = id != null ? await FindItemAsync(id.Value).ConfigureAwait(false) : null;
+                // what is not given stays as it is on an existing item, and its gallery is kept in front of what is added, a new item starts private with what is given
+                var item = id != null && (screenshots != null || videos != null) ? await FindItemAsync(id.Value).ConfigureAwait(false) : null;
 
                 var result = await manager.PublishAsync(new AddonPublishOptions
                 {
                     AddonName = addon,
                     PublishedFileId = id,
                     Title = title,
-                    Description = description ?? item?.Description ?? string.Empty,
-                    Visibility = itemVisibility ?? item?.Visibility ?? WorkshopVisibility.Private,
-                    Tags = itemTags ?? item!.Tags,
+                    Description = description,
+                    Visibility = itemVisibility,
+                    Tags = itemTags,
                     ThumbnailImagePath = thumbnail,
                     Gallery = BuildGallery(item?.Previews ?? [], [], screenshots, videos),
                     ChangeNote = changenote,

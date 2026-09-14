@@ -29,16 +29,16 @@ public sealed record AddonPublishOptions
     /// <summary> Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission. </summary>
     public ulong? PublishedFileId { get; init; }
 
-    /// <summary> Title of the workshop item, needed for an upload. When only editing info, null leaves the published title alone. </summary>
+    /// <summary> Title of the workshop item, needed for a new one. Null leaves an existing item's title alone. </summary>
     public string? Title { get; init; }
 
-    /// <summary> Description of the workshop item, empty for an upload when null. When only editing info, null leaves the published description alone. </summary>
+    /// <summary> Description of the workshop item, empty for a new one when null. Null leaves an existing item's description alone. </summary>
     public string? Description { get; init; }
 
-    /// <summary> Visibility of the Workshop item, see <see cref="WorkshopVisibility"/>, private for an upload when null. When only editing info, null leaves the published visibility alone. </summary>
+    /// <summary> Visibility of the Workshop item, see <see cref="WorkshopVisibility"/>, private for a new one when null. Null leaves an existing item's visibility alone. </summary>
     public WorkshopVisibility? Visibility { get; init; }
 
-    /// <summary> The user facing list of submission tags that will show up on the Workshop, <see cref="WorkshopManager.DefaultTags"/> for an upload when null. When only editing info, null leaves the published tags alone. </summary>
+    /// <summary> The user facing list of submission tags that will show up on the Workshop, <see cref="WorkshopManager.DefaultTags"/> for a new one when null. Null leaves an existing item's tags alone. </summary>
     public IReadOnlyList<string>? Tags { get; init; }
 
     /// <summary> Disk path for the user facing thumbnail image that will show up on the Workshop. Null leaves the published preview alone. </summary>
@@ -47,7 +47,7 @@ public sealed record AddonPublishOptions
     /// <summary> The gallery under the main preview as it should be afterwards, see <see cref="GalleryUpdate"/>. Null leaves the published gallery alone. </summary>
     public GalleryUpdate? Gallery { get; init; }
 
-    /// <summary> Change note that shows up in the "Change Notes" tab. Null gives the workshop manager's "Created {Title}." or "Edited {Title}." for an upload and no note when only editing info. </summary>
+    /// <summary> Change note that shows up in the "Change Notes" tab. Null gives the workshop manager's "Created {Title}." for a new item, "Edited {Title}." for an upload with a title, and no note otherwise. </summary>
     public string? ChangeNote { get; init; }
 
     /// <summary> Update the item even when the workshop content was published from a different addon folder, otherwise <see cref="SourceFolderConflictException"/> is thrown. </summary>
@@ -617,12 +617,12 @@ public sealed class WorkshopManager
             throw new ArgumentException("A new submission needs an addon folder to upload.", nameof(options));
         }
 
-        // an upload sets everything like the workshop manager does, an info edit only what was given
-        var editsInfoOnly = options.AddonName == null;
+        // a new item gets the workshop manager's defaults for what is not given, an existing one keeps what it has, since Steam leaves alone what is not set
+        var creating = options.PublishedFileId == null;
 
-        if (!editsInfoOnly && string.IsNullOrWhiteSpace(options.Title))
+        if (creating && string.IsNullOrWhiteSpace(options.Title))
         {
-            throw new ArgumentException("An upload needs a title.", nameof(options));
+            throw new ArgumentException("A new item needs a title.", nameof(options));
         }
 
         if (options.AddonName != null && options.PublishedFileId is ulong existingFileId && !options.AllowSourceFolderChange)
@@ -650,8 +650,8 @@ public sealed class WorkshopManager
 
         var publishTime = DateTimeOffset.UtcNow;
 
-        // only the info changes when there is no addon to upload
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime, LoadPackingRules(options.AddonName));
+        // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, LoadPackingRules(options.AddonName));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);
@@ -661,12 +661,12 @@ public sealed class WorkshopManager
             ugc.SetItemTitle(handle, options.Title);
         }
 
-        if ((options.Description ?? (editsInfoOnly ? null : string.Empty)) is string description)
+        if ((options.Description ?? (creating ? string.Empty : null)) is string description)
         {
             ugc.SetItemDescription(handle, description);
         }
 
-        if ((options.Visibility ?? (editsInfoOnly ? null : WorkshopVisibility.Private)) is WorkshopVisibility visibility)
+        if ((options.Visibility ?? (creating ? WorkshopVisibility.Private : null)) is WorkshopVisibility visibility)
         {
             ugc.SetItemVisibility(handle, (ERemoteStoragePublishedFileVisibility)visibility);
         }
@@ -683,12 +683,12 @@ public sealed class WorkshopManager
             ugc.SetItemContent(handle, contentPath);
         }
 
-        if ((options.Tags ?? (editsInfoOnly ? null : DefaultTags)) is { } tags)
+        if ((options.Tags ?? (creating ? DefaultTags : null)) is { } tags)
         {
             ugc.SetItemTags(handle, tags);
         }
 
-        var changeNote = options.ChangeNote ?? (editsInfoOnly ? string.Empty : options.PublishedFileId == null ? $"Created {options.Title}." : $"Edited {options.Title}.");
+        var changeNote = options.ChangeNote ?? (creating ? $"Created {options.Title}." : options.AddonName != null && options.Title != null ? $"Edited {options.Title}." : string.Empty);
 
         SubmitItemUpdateResult result;
 
