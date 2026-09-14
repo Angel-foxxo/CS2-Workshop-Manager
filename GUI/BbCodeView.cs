@@ -119,6 +119,12 @@ public sealed class BbCodeView : StackPanel
             {
                 var name = inside[1..];
 
+                // [hr][/hr], as Steam's own editor writes a rule: the closing tag is nothing, the rule stands on its own
+                if (name.Equals("hr", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 if (KnownTags.Contains(name) && open.Any(node => name.Equals(node.Tag, StringComparison.OrdinalIgnoreCase)))
                 {
                     while (!name.Equals(open.Pop().Tag, StringComparison.OrdinalIgnoreCase))
@@ -198,7 +204,12 @@ public sealed class BbCodeView : StackPanel
                     case "img" or "previewyoutube":
                         break;
                     case "url":
-                        plain.Append(node.InnerText);
+                        // a link around a picture is the picture, which is dropped like any other
+                        if (!node.Children.Any(child => child.Tag == "img"))
+                        {
+                            plain.Append(node.InnerText);
+                        }
+
                         break;
                     case "hr":
                         plain.Append('\n');
@@ -236,7 +247,7 @@ public sealed class BbCodeView : StackPanel
         {
             var node = nodes[index];
 
-            if (node.Tag != null && BlockTags.Contains(node.Tag))
+            if (IsBlock(node))
             {
                 paragraph = null;
                 target.Add(RenderBlock(node));
@@ -253,7 +264,7 @@ public sealed class BbCodeView : StackPanel
                     text = text.StartsWith("\r\n", StringComparison.Ordinal) ? text[2..] : text.StartsWith('\n') ? text[1..] : text;
                 }
 
-                if (index + 1 == nodes.Count || (nodes[index + 1].Tag != null && BlockTags.Contains(nodes[index + 1].Tag!)))
+                if (index + 1 == nodes.Count || IsBlock(nodes[index + 1]))
                 {
                     text = text.EndsWith("\r\n", StringComparison.Ordinal) ? text[..^2] : text.EndsWith('\n') ? text[..^1] : text;
                 }
@@ -291,10 +302,29 @@ public sealed class BbCodeView : StackPanel
         }
     }
 
+    /// <summary>Whether a node stands on its own lines: a block tag, or a link around a picture, which shows as the picture.</summary>
+    private static bool IsBlock(Node node)
+    {
+        return node.Tag != null && (BlockTags.Contains(node.Tag) || (node.Tag == "url" && node.Children.Any(child => child.Tag == "img")));
+    }
+
     private Control RenderBlock(Node node)
     {
         switch (node.Tag)
         {
+            case "url":
+                // a link around a picture: the picture, opening the link when clicked
+                var linked = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left, Cursor = new Cursor(StandardCursorType.Hand) };
+
+                RenderBlocks(node.Children, linked.Children);
+
+                if (TryParseLink(node.Argument?.Trim() ?? string.Empty, out var linkUri))
+                {
+                    linked.PointerPressed += (_, _) => _ = TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(linkUri);
+                }
+
+                return linked;
+
             case "h1":
             case "h2":
             case "h3":
