@@ -20,7 +20,7 @@ Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this too
 - Added "Unlisted" visiblity option.
 - Added a new description editor, with Steam BBCode preview.
 - Added a new gallery editor, screenshots and YouTube videos under the thumbnail can be added and removed without leaving the app.
-- Added support for more thumbnail file types as well as relutions.
+- Added support for more thumbnail file types as well as resolutions.
 - Added support for GIF thumbnails.
 - Added support for custom used defined tags.
 - Added new tool "Pack Filter" allowing you to define custom file packing rules.
