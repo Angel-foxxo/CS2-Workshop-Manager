@@ -138,12 +138,12 @@ public static class WindowAccent
             ["AccentButtonBorderBrushPressed"] = pressed,
         };
 
-        var onFace = new SolidColorBrush(TextOn(face));
+        var onFace = new SolidColorBrush(Contrast.TextOn(face));
 
         own["AccentButtonForeground"] = own["AccentButtonForegroundPointerOver"] = own["AccentButtonForegroundPressed"] = onFace;
 
         // text on the accent itself: checked toggles, pressed buttons, selected rows and items
-        var onAccent = new SolidColorBrush(TextOn(accent));
+        var onAccent = new SolidColorBrush(Contrast.TextOn(accent));
 
         own["OnAccentBrush"] = onAccent;
 
@@ -234,21 +234,6 @@ public static class WindowAccent
         ThemeKeys[variant] = keys;
 
         return keys;
-    }
-
-    /// <summary>Black or white, whichever reads better on <paramref name="surface"/>: the one with the higher contrast ratio, which black has once the surface is light enough.</summary>
-    private static Color TextOn(Color surface)
-    {
-        var luminance = 0.2126 * Linear(surface.R) + 0.7152 * Linear(surface.G) + 0.0722 * Linear(surface.B);
-
-        return luminance > 0.179 ? Colors.Black : Colors.White;
-
-        static double Linear(byte channel)
-        {
-            var value = channel / 255.0;
-
-            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
-        }
     }
 
     /// <summary>The colour <paramref name="amount"/> of the way from <paramref name="from"/> to <paramref name="to"/>.</summary>

@@ -13,6 +13,8 @@
             <!-- the accents of warnings and destructive prompts: a window derives its gradient and highlights from whichever accent it is given, see WindowAccent -->
             <Color x:Key="WarningAccentColor">#DFA71F</Color>
             <Color x:Key="DangerAccentColor">#DF1F1F</Color>
+            <!-- the warning accent as text, dark enough to read on the light window -->
+            <Color x:Key="WarningTextColor">#7A5A00</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="ShadeColor">#FFFFFF</Color>
             <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent. Both are derived again from each window's accent, see WindowAccent -->
@@ -32,6 +34,8 @@
             <!-- the accents of warnings and destructive prompts: a window derives its gradient and highlights from whichever accent it is given, see WindowAccent -->
             <Color x:Key="WarningAccentColor">#DA9B1E</Color>
             <Color x:Key="DangerAccentColor">#EA373A</Color>
+            <!-- the warning accent as text, which reads on the dark window as it is -->
+            <Color x:Key="WarningTextColor">#DA9B1E</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="ShadeColor">#000000</Color>
             <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent -->
@@ -64,7 +68,7 @@
     <!-- text on the accent, which each window sets to black or white by its own accent, see WindowAccent -->
     <SolidColorBrush x:Key="OnAccentBrush" Color="{DynamicResource ContrastColor}" />
     <!-- text that warns, in the warning prompts' accent -->
-    <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningAccentColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningTextColor}" />
     <SolidColorBrush x:Key="TransparentBrush" Color="Transparent" />
 
 

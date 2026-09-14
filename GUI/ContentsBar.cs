@@ -31,7 +31,7 @@ public sealed class ContentsBar : Control
     /// <summary>How much the workshop manager lightens the span under the pointer and darkens the others, as Qt's percentage.</summary>
     private const double HoverFactor = 125;
 
-    private static readonly ImmutableSolidColorBrush WarningBrush = new(Color.FromRgb(255, 40, 40));
+    private static readonly Color WarningColor = Color.FromRgb(255, 40, 40);
 
     private Point? pointer;
 
@@ -72,20 +72,21 @@ public sealed class ContentsBar : Control
             context.FillRectangle(new ImmutableSolidColorBrush(color), span.Rect);
         }
 
-        // the bottom half says what the bar shows, or what the span under the pointer is
+        // the bottom half says what the bar shows, or what the span under the pointer is, in the span's colour or the warning's pushed to where it reads on the window
         var textArea = new Rect(0, Math.Floor(bounds.Height / 2), bounds.Width, 2 * Math.Floor(bounds.Height / 2) - 1);
+        var background = this.TryFindResource("AppColor", ActualThemeVariant, out var found) && found is Color window ? window : Colors.Black;
         string text;
         IBrush? brush;
 
         if (hovered != null)
         {
             text = contents.Describe(hovered.AssetType);
-            brush = new ImmutableSolidColorBrush(Lighter(hovered.Color));
+            brush = new ImmutableSolidColorBrush(Contrast.Readable(Lighter(hovered.Color), background));
         }
         else if (contents.ExceedsUploadLimit)
         {
             text = $"{contents.Summary} WARNING: Exceeds {AddonContents.FormatSize(AddonPackager.MaxTotalSize)} upload limit!";
-            brush = WarningBrush;
+            brush = new ImmutableSolidColorBrush(Contrast.Readable(WarningColor, background));
         }
         else
         {
