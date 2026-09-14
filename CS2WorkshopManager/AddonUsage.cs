@@ -19,13 +19,6 @@ namespace CS2WorkshopManager;
 public static partial class AddonUsage
 {
     /// <summary>
-    /// Anything in a script that is shaped like a path, two or more parts with a slash between them. What it lands on is checked against the
-    /// addon afterwards, so matching more than is meant costs nothing.
-    /// </summary>
-    [GeneratedRegex(@"[\w\-.]+(?:[/\\][\w\-.]+)+", RegexOptions.CultureInvariant)]
-    private static partial Regex PathLike { get; }
-
-    /// <summary>
     /// Folders the game loads by name rather than through any reference, so nothing in them is ever unused however the crawl goes.
     /// </summary>
     private static readonly string[] AlwaysUsedDirectories =
@@ -274,7 +267,7 @@ public static partial class AddonUsage
 
             var source = Encoding.UTF8.GetString(script.Data);
 
-            foreach (var match in PathLike.EnumerateMatches(source))
+            foreach (var match in PathLike().EnumerateMatches(source))
             {
                 Want(source.AsSpan(match.Index, match.Length).ToString());
             }
@@ -342,4 +335,8 @@ public static partial class AddonUsage
             }
         }
     }
+
+    /// <summary>Anything shaped like a path, two or more parts with a slash between them, whatever else it turns out to be.</summary>
+    [GeneratedRegex(@"[\w\-.]+(?:[/\\][\w\-.]+)+")]
+    private static partial Regex PathLike();
 }
