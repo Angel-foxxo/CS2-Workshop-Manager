@@ -145,13 +145,13 @@ public static class Commands
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons to upload.</param>
     /// <param name="title">-t, Title of the workshop item.</param>
-    /// <param name="id">-i, Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission. </param>
+    /// <param name="id">-i, Workshop ID of an existing submission, if this is provided everything will be treated as updating this submission, which keeps its description, visibility and tags unless they are given.</param>
     /// <param name="description">-d, Description of the workshop item.</param>
     /// <param name="description_file">Read the description from this text file instead.</param>
     /// <param name="changenote">-c, Change note, Defaults to "Created {title}." or "Edited {title}.".</param>
     /// <param name="changenote_file">Read the change note from this text file instead.</param>
     /// <param name="thumbnail">-th, Disk path for the thumbnail.</param>
-    /// <param name="visibility">-v, Visibility of the workshop item: public, friendsonly, private or unlisted.</param>
+    /// <param name="visibility">-v, Visibility of the workshop item: public, friendsonly, private or unlisted. A new item is private by default.</param>
     /// <param name="tags">Comma separated list of workshop tags added after the "CS2" and "Map" tags. Map game modes are Classic, Deathmatch, Armsrace, Wingman and Custom.</param>
     /// <param name="tags_dangerous">Comma separated workshop tags used as the complete tag list, without "CS2" and "Map". Without those the item does not show up as a Counter-Strike 2 map in the workshop or in the game's map browsers.</param>
     /// <param name="screenshots">Comma separated disk paths of pictures to add to the gallery under the thumbnail, PNG, JPG or GIF under 1 MB each.</param>
@@ -168,7 +168,7 @@ public static class Commands
         string? changenote = default,
         string? changenote_file = default,
         string? thumbnail = default,
-        string visibility = nameof(WorkshopVisibility.Private),
+        string? visibility = default,
         string? tags = default,
         string? tags_dangerous = default,
         string? screenshots = default,
@@ -178,9 +178,16 @@ public static class Commands
         bool force = false
     )
     {
-        if (!TryParseVisibility(visibility, out var itemVisibility))
+        WorkshopVisibility? itemVisibility = null;
+
+        if (visibility != null)
         {
-            return 1;
+            if (!TryParseVisibility(visibility, out var parsed))
+            {
+                return 1;
+            }
+
+            itemVisibility = parsed;
         }
 
         if (tags != null && tags_dangerous != null)
@@ -189,15 +196,16 @@ public static class Commands
             return 1;
         }
 
-        var itemTags = tags_dangerous != null
+        // null when an existing item is to keep its tags
+        IReadOnlyList<string>? itemTags = tags_dangerous != null
             ? SplitTags(tags_dangerous)
-            : [.. WorkshopManager.DefaultTags, .. SplitTags(tags)];
+            : tags != null || id == null ? [.. WorkshopManager.DefaultTags, .. SplitTags(tags)] : null;
 
-        itemTags = [.. itemTags.Distinct(StringComparer.OrdinalIgnoreCase)];
+        itemTags = itemTags?.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         if (tags_dangerous != null)
         {
-            Console.WriteLine($"Warning: uploading with tags [{string.Join(", ", itemTags)}] without the `CS2` and `Map` tags the workshop manager always sets.");
+            Console.WriteLine($"Warning: uploading with tags [{string.Join(", ", itemTags!)}] without the `CS2` and `Map` tags the workshop manager always sets.");
         }
 
         if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail))
@@ -243,19 +251,19 @@ public static class Commands
                     Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
                 }
 
-                // an existing item's gallery is kept in front of what is added, a new item's starts with what is added
-                var current = id != null && (screenshots != null || videos != null) ? (await FindItemAsync(id.Value).ConfigureAwait(false)).Previews : [];
+                // an existing item keeps its description, visibility, tags and gallery, the last with what is added after it, a new item starts private with what is given
+                var item = id != null ? await FindItemAsync(id.Value).ConfigureAwait(false) : null;
 
                 var result = await manager.PublishAsync(new AddonPublishOptions
                 {
                     AddonName = addon,
                     PublishedFileId = id,
                     Title = title,
-                    Description = description ?? string.Empty,
-                    Visibility = itemVisibility,
-                    Tags = itemTags,
+                    Description = description ?? item?.Description ?? string.Empty,
+                    Visibility = itemVisibility ?? item?.Visibility ?? WorkshopVisibility.Private,
+                    Tags = itemTags ?? item!.Tags,
                     ThumbnailImagePath = thumbnail,
-                    Gallery = BuildGallery(current, [], screenshots, videos),
+                    Gallery = BuildGallery(item?.Previews ?? [], [], screenshots, videos),
                     ChangeNote = changenote,
                     AllowSourceFolderChange = force,
                 }, new Progress<float>(progress =>

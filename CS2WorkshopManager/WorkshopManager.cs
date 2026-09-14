@@ -620,6 +620,17 @@ public sealed class WorkshopManager
             }
         }
 
+        // what can fail without Steam is checked before a new item is created, so a mistake does not leave an empty one behind
+        if (options.AddonName != null && !Directory.Exists(Path.Combine(AddonsRoot, options.AddonName)))
+        {
+            throw new DirectoryNotFoundException($"Addon folder '{Path.Combine(AddonsRoot, options.AddonName)}' does not exist.");
+        }
+
+        if (options.ThumbnailImagePath != null)
+        {
+            ValidateThumbnailImage(options.ThumbnailImagePath);
+        }
+
         var publishedFileId = options.PublishedFileId ?? await CreateItemAsync().ConfigureAwait(false);
 
         var publishTime = DateTimeOffset.UtcNow;
