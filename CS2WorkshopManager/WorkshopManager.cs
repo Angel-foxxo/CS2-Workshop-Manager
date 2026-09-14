@@ -226,11 +226,20 @@ public sealed class WorkshopManager
         return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
     }
 
+    /// <summary>The rules a crawl of <paramref name="addonName"/>'s map generated, none when nothing has been generated for it.</summary>
+    public AddonRules LoadAutoRules(string addonName)
+    {
+        return AddonRules.LoadAuto(AddonRules.GetPath(ContentRoot, addonName));
+    }
+
     public void SaveRules(string addonName, AddonRules rules)
     {
-        ArgumentNullException.ThrowIfNull(rules);
+        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), rules, LoadAutoRules(addonName));
+    }
 
-        rules.Save(AddonRules.GetPath(ContentRoot, addonName));
+    public void SaveAutoRules(string addonName, AddonRules auto)
+    {
+        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), LoadRules(addonName), auto);
     }
 
     /// <summary>
