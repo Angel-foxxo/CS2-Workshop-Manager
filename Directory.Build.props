@@ -13,7 +13,7 @@
     <Nullable>enable</Nullable>
 
     <!-- the one place the version lives, the release workflow tags and publishes whatever stands here -->
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
 
     <Authors>Angel</Authors>
     <Copyright>Copyright © Angel</Copyright>
