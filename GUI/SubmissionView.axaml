@@ -126,6 +126,8 @@
                                 <ToggleButton Name="EditToggle" Classes="format" Content="Edit" IsChecked="True" Click="OnDescriptionViewToggle" />
                                 <ToggleButton Name="PreviewToggle" Classes="format" Content="Preview" Click="OnDescriptionViewToggle" />
                             </StackPanel>
+                            <!-- the buttons scroll sideways when the window is too narrow for them all, rather than wrapping, on a bar below them rather than one that pops over them -->
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" AllowAutoHide="False" Margin="0,0,8,0">
                             <StackPanel Name="FormatButtons" Orientation="Horizontal" Spacing="4">
                                 <Button Classes="format" Content="B" FontWeight="Bold" Tag="b" Click="OnFormat" />
                                 <Button Classes="format" Content="I" FontStyle="Italic" Tag="i" Click="OnFormat" />
@@ -139,6 +141,7 @@
                                 <Button Classes="format" Content="Code" Tag="code" Click="OnFormat" />
                                 <Button Classes="format" Content="Spoiler" Tag="spoiler" Click="OnFormat" />
                             </StackPanel>
+                            </ScrollViewer>
                         </DockPanel>
                         <Panel>
                             <TextBox Name="DescriptionBox" MinHeight="120" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" />
