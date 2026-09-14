@@ -100,22 +100,30 @@ public sealed class WorkshopItemRow(WorkshopItem item) : INotifyPropertyChanged
     public string SizeText => AddonContents.FormatSize(Item.Size);
 
     /// <summary>The counts Steam keeps for the item, rounded the way its list pages round them, so they fit on one line.</summary>
-    public string StatsLine => $"{Counted(Item.Subscribers, "subscriber", compact: true)} | {Counted(Item.Views, "view", compact: true)} | {Counted(Item.Likes, "like", compact: true)} | {Counted(Item.Favorites, "favourite", compact: true)}";
+    public string StatsLine => $"{Counted(Item.Subscribers, "sub", compact: true)} | {Counted(Item.Views, "view", compact: true)} | {Counted(Item.Likes, "like", compact: true)} | {Counted(Item.Dislikes, "dislike", compact: true)} | {Counted(Item.Favorites, "fav", compact: true)}";
 
     /// <summary>The rounded counts with a separator between each two, so they wrap between counts rather than inside one.</summary>
     public IReadOnlyList<StatPart> StatsParts =>
     [
-        new(Counted(Item.Subscribers, "subscriber", compact: true), false),
+        new(Counted(Item.Subscribers, "sub", compact: true), false),
         new("|", true),
         new(Counted(Item.Views, "view", compact: true), false),
         new("|", true),
         new(Counted(Item.Likes, "like", compact: true), false),
         new("|", true),
-        new(Counted(Item.Favorites, "favourite", compact: true), false),
+        new(Counted(Item.Dislikes, "dislike", compact: true), false),
+        new("|", true),
+        new(Counted(Item.Favorites, "fav", compact: true), false),
     ];
 
+    /// <summary>Steam's vote score as stars out of five, filled by the score itself rather than rounded up to whole stars the way the workshop page shows them.</summary>
+    public double Stars => Item.Score * 5;
+
+    /// <summary>The stars in words with the votes behind them, for the tooltip.</summary>
+    public string RatingText => Item.Likes + Item.Dislikes == 0 ? "No votes yet" : $"{Stars:0.0} of 5 stars, from {Counted(Item.Likes, "like", compact: false)} and {Counted(Item.Dislikes, "dislike", compact: false)}";
+
     /// <summary>The same counts in full, for the tooltip.</summary>
-    public string StatsExact => $"{Counted(Item.Subscribers, "subscriber", compact: false)} | {Counted(Item.Views, "view", compact: false)} | {Counted(Item.Likes, "like", compact: false)} | {Counted(Item.Favorites, "favourite", compact: false)}";
+    public string StatsExact => $"{Counted(Item.Subscribers, "subscriber", compact: false)} | {Counted(Item.Views, "view", compact: false)} | {Counted(Item.Likes, "like", compact: false)} | {Counted(Item.Dislikes, "dislike", compact: false)} | {Counted(Item.Favorites, "favourite", compact: false)}";
 
     /// <summary>The preview image file as downloaded, decoded again at full size when the item is opened for editing.</summary>
     public byte[]? Preview { get; set; }

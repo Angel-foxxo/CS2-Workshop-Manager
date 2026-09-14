@@ -4,9 +4,34 @@ namespace GUI;
 
 /// <summary>
 /// Keeps coloured text readable: text on a coloured surface is black or white by which reads better, and coloured text on a background is pushed lighter or darker until it reads.
+/// Also lightens and darkens the way Qt does, which the workshop manager's own bar is drawn with.
 /// </summary>
 public static class Contrast
 {
+    /// <summary>Qt's QColor::lighter: the value goes up by <paramref name="percent"/>, and what does not fit is taken from the saturation.</summary>
+    public static Color Lighter(Color color, double percent)
+    {
+        var hsv = color.ToHsv();
+        var value = hsv.V * percent / 100;
+        var saturation = hsv.S;
+
+        if (value > 1)
+        {
+            saturation = Math.Max(0, saturation - (value - 1));
+            value = 1;
+        }
+
+        return HsvColor.ToRgb(hsv.H, saturation, value);
+    }
+
+    /// <summary>Qt's QColor::darker: the value goes down by <paramref name="percent"/>.</summary>
+    public static Color Darker(Color color, double percent)
+    {
+        var hsv = color.ToHsv();
+
+        return HsvColor.ToRgb(hsv.H, hsv.S, hsv.V * 100 / percent);
+    }
+
     /// <summary>The contrast ratio text should reach against what it sits on, the accessibility guidelines' figure for normal text.</summary>
     private const double Wanted = 4.5;
 

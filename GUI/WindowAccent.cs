@@ -27,6 +27,9 @@ public static class WindowAccent
     /// <summary>How much lighter, or darker on the light theme, a highlighted button gets under the pointer, and twice that when pressed.</summary>
     private const double HoverStep = 0.06;
 
+    /// <summary>How much the stars of a rating are boosted from the accent, lighter on the dark theme and darker on the light one, as Qt's percentage.</summary>
+    private const double StarBoost = 130;
+
     /// <summary>How far from the main colour towards the accent a popup's panel sits on the dark theme, where the panel is the window colour lifted towards the accent.</summary>
     private const double PopupMix = 0.2;
 
@@ -146,6 +149,9 @@ public static class WindowAccent
         var onAccent = new SolidColorBrush(Contrast.TextOn(accent));
 
         own["OnAccentBrush"] = onAccent;
+
+        // the stars of a rating are thin, so they wear the accent boosted off the window
+        own["StarBrush"] = new SolidColorBrush(light ? Contrast.Darker(accent, StarBoost) : Contrast.Lighter(accent, StarBoost));
 
         foreach (var key in OnAccentKeys)
         {

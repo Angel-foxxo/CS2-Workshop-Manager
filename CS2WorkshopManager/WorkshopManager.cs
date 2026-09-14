@@ -143,6 +143,8 @@ public sealed record WorkshopItem(
     ulong Subscribers,
     ulong Favorites,
     ulong Likes,
+    ulong Dislikes,
+    double Score,
     ulong Views,
     Uri? PreviewUrl,
     IReadOnlyList<WorkshopPreview> Previews)
@@ -370,6 +372,8 @@ public sealed class WorkshopManager
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumSubscriptions) ?? 0,
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumFavorites) ?? 0,
                         details.VotesUp,
+                        details.VotesDown,
+                        details.Score,
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumUniqueWebsiteViews) ?? 0,
                         ugc.GetQueryUGCPreviewURL(query, index),
                         ReadPreviews(ugc, query, index));

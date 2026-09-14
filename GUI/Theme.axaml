@@ -65,6 +65,8 @@
     <SolidColorBrush x:Key="PopupBrush" Color="{DynamicResource PopupColor}" />
     <SolidColorBrush x:Key="OutlineBrush" Color="{DynamicResource OutlineColor}" />
     <SolidColorBrush x:Key="HeadingBrush" Color="{DynamicResource HeadingColor}" />
+    <!-- the stars of a rating: the accent, which each window boosts off its background, see WindowAccent -->
+    <SolidColorBrush x:Key="StarBrush" Color="{DynamicResource AccentColor}" />
     <!-- text on the accent, which each window sets to black or white by its own accent, see WindowAccent -->
     <SolidColorBrush x:Key="OnAccentBrush" Color="{DynamicResource ContrastColor}" />
     <!-- text that warns, in the warning prompts' accent -->

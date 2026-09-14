@@ -67,7 +67,7 @@ public sealed class ContentsBar : Control
 
         foreach (var span in spans)
         {
-            var color = hovered == null ? span.Color : span == hovered ? Lighter(span.Color) : Darker(span.Color);
+            var color = hovered == null ? span.Color : span == hovered ? Contrast.Lighter(span.Color, HoverFactor) : Contrast.Darker(span.Color, HoverFactor);
 
             context.FillRectangle(new ImmutableSolidColorBrush(color), span.Rect);
         }
@@ -81,7 +81,7 @@ public sealed class ContentsBar : Control
         if (hovered != null)
         {
             text = contents.Describe(hovered.AssetType);
-            brush = new ImmutableSolidColorBrush(Contrast.Readable(Lighter(hovered.Color), background));
+            brush = new ImmutableSolidColorBrush(Contrast.Readable(Contrast.Lighter(hovered.Color, HoverFactor), background));
         }
         else if (contents.ExceedsUploadLimit)
         {
@@ -139,30 +139,6 @@ public sealed class ContentsBar : Control
         }
 
         return spans;
-    }
-
-    /// <summary>Qt's QColor::lighter: the value goes up, and what does not fit is taken from the saturation.</summary>
-    private static Color Lighter(Color color)
-    {
-        var hsv = color.ToHsv();
-        var value = hsv.V * HoverFactor / 100;
-        var saturation = hsv.S;
-
-        if (value > 1)
-        {
-            saturation = Math.Max(0, saturation - (value - 1));
-            value = 1;
-        }
-
-        return HsvColor.ToRgb(hsv.H, saturation, value);
-    }
-
-    /// <summary>Qt's QColor::darker: the value goes down.</summary>
-    private static Color Darker(Color color)
-    {
-        var hsv = color.ToHsv();
-
-        return HsvColor.ToRgb(hsv.H, hsv.S, hsv.V * 100 / HoverFactor);
     }
 
     private sealed record Span(AddonContents.AssetType AssetType, Rect Rect, Color Color);
