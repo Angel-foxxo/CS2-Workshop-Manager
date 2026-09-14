@@ -10,7 +10,8 @@ namespace GUI;
 
 /// <summary>
 /// A window's accent colour, from which the rest of its colouring follows: the centre of its gradient is the main colour a quarter of the way to the accent,
-/// its highlighted buttons wear the accent toned down towards the main colour and brighten under the pointer, and every control colour the theme takes from the accent takes it from this one instead.
+/// its highlighted buttons wear the accent toned down towards the main colour and brighten under the pointer, the panels of its popups and the outlines of its fields lean towards it,
+/// and every control colour the theme takes from the accent takes it from this one instead.
 /// Set it on the window in XAML, or bind it from code when the colour is only known then.
 /// </summary>
 public static class WindowAccent
@@ -26,6 +27,15 @@ public static class WindowAccent
     /// <summary>How much lighter, or darker on the light theme, a highlighted button gets under the pointer, and twice that when pressed.</summary>
     private const double HoverStep = 0.06;
 
+    /// <summary>How far from the main colour towards the accent a popup's panel sits on the dark theme, where the panel is the window colour lifted towards the accent.</summary>
+    private const double PopupMix = 0.2;
+
+    /// <summary>How far towards the accent a popup's panel leans on the light theme, from the window colour lifted halfway to white.</summary>
+    private const double LightPopupMix = 0.06;
+
+    /// <summary>How far from the main colour towards the accent the outline of fields and check boxes sits, before it is greyed a little.</summary>
+    private const double OutlineMix = 0.45;
+
     /// <summary>The Fluent keys for text on a surface painted in the accent.</summary>
     private static readonly string[] OnAccentKeys =
     [
@@ -37,17 +47,21 @@ public static class WindowAccent
         "MenuFlyoutItemForegroundPressed",
     ];
 
-    /// <summary>How far from the main colour towards the accent a popup's panel sits on the dark theme, where the panel is the window colour lifted towards the accent.</summary>
-    private const double PopupMix = 0.2;
+    /// <summary>The theme's brushes a window paints in its own colours, by the keys they hold in the theme.</summary>
+    private static readonly string[] PaintedBrushes = ["AccentBrush", "PopupBrush", "OutlineBrush"];
 
-    /// <summary>How far towards the accent a popup's panel leans on the light theme, from the window colour lifted halfway to white.</summary>
-    private const double LightPopupMix = 0.06;
+    /// <summary>What each window has: the dictionary its colouring lives in, swapped whole so the window is told once, and whether a repaint is already on its way.</summary>
+    private sealed class State
+    {
+        public ResourceDictionary? Own { get; set; }
 
-    /// <summary>How far from the main colour towards the accent the outline of fields and check boxes sits, before it is greyed a little.</summary>
-    private const double OutlineMix = 0.45;
+        public bool Pending { get; set; }
+    }
 
-    /// <summary>The theme's keys each window has painted in its accent, to take back before painting again.</summary>
-    private static readonly ConditionalWeakTable<Window, List<object>> Painted = [];
+    private static readonly ConditionalWeakTable<Window, State> States = [];
+
+    /// <summary>The theme's keys that hold one of the painted brushes, found once per theme variant since the theme does not change.</summary>
+    private static readonly Dictionary<ThemeVariant, List<(object Key, SolidColorBrush Brush)>> ThemeKeys = [];
 
     static WindowAccent()
     {
@@ -58,15 +72,27 @@ public static class WindowAccent
     }
 
     /// <summary>
-    /// Derives the window's colouring once the change asking for it has gone through, since the theme's brushes it looks for take on a new accent in that same change.
+    /// Derives the window's colouring once the change asking for it has gone through, since the theme's brushes it looks for take on a new accent in that same change,
+    /// and once for however many changes ask in the meantime, as a theme switch changes both the theme and the accent.
     /// </summary>
     private static void ApplyLater(Window window)
     {
+        var state = States.GetValue(window, _ => new State());
+
+        if (state.Pending)
+        {
+            return;
+        }
+
+        state.Pending = true;
+
         Dispatcher.UIThread.Post(() =>
         {
+            state.Pending = false;
+
             if (window.IsSet(ColorProperty))
             {
-                Apply(window, GetColor(window));
+                Apply(window, state, GetColor(window));
             }
         });
     }
@@ -82,79 +108,112 @@ public static class WindowAccent
     }
 
     /// <summary>Puts the colours derived from <paramref name="accent"/> into the window's resources, ahead of the theme's for everything in the window.</summary>
-    private static void Apply(Window window, Color accent)
+    private static void Apply(Window window, State state, Color accent)
     {
         var variant = window.ActualThemeVariant;
         var application = Application.Current!;
 
         if (!application.TryFindResource("AppColor", variant, out var found) || found is not Color main
             || !application.TryFindResource("ShadeColor", variant, out found) || found is not Color shade
-            || !application.TryFindResource("ContrastSoftColor", variant, out found) || found is not Color contrastSoft
-            || !application.TryFindResource("AccentBrush", variant, out found) || found is not SolidColorBrush accentBrush
-            || !application.TryFindResource("PopupBrush", variant, out found) || found is not SolidColorBrush popupBrush
-            || !application.TryFindResource("OutlineBrush", variant, out found) || found is not SolidColorBrush outlineBrush)
+            || !application.TryFindResource("ContrastSoftColor", variant, out found) || found is not Color contrastSoft)
         {
             return;
         }
 
-        var step = variant == ThemeVariant.Light ? -HoverStep : HoverStep;
-        var brush = new SolidColorBrush(accent);
+        var light = variant == ThemeVariant.Light;
+        var step = light ? -HoverStep : HoverStep;
         var face = Mix(main, accent, ButtonMix);
         var hover = new SolidColorBrush(Shift(face, step));
         var pressed = new SolidColorBrush(Shift(face, 2 * step));
-        var resources = window.Resources;
 
-        resources["AppAccentColor"] = Mix(main, accent, GradientMix);
-        resources["AccentButtonBackground"] = resources["AccentButtonBorderBrush"] = new SolidColorBrush(face);
-        resources["AccentButtonBackgroundPointerOver"] = resources["AccentButtonBorderBrushPointerOver"] = hover;
-        resources["AccentButtonBackgroundPressed"] = resources["AccentButtonBorderBrushPressed"] = pressed;
-        resources["AccentButtonForeground"] = resources["AccentButtonForegroundPointerOver"] = resources["AccentButtonForegroundPressed"] = new SolidColorBrush(TextOn(face));
+        // everything goes into a dictionary of its own first, so the window is told of one change rather than one per key
+        var own = new ResourceDictionary
+        {
+            ["AppAccentColor"] = Mix(main, accent, GradientMix),
+            ["AccentButtonBackground"] = new SolidColorBrush(face),
+            ["AccentButtonBorderBrush"] = new SolidColorBrush(face),
+            ["AccentButtonBackgroundPointerOver"] = hover,
+            ["AccentButtonBorderBrushPointerOver"] = hover,
+            ["AccentButtonBackgroundPressed"] = pressed,
+            ["AccentButtonBorderBrushPressed"] = pressed,
+        };
+
+        var onFace = new SolidColorBrush(TextOn(face));
+
+        own["AccentButtonForeground"] = own["AccentButtonForegroundPointerOver"] = own["AccentButtonForegroundPressed"] = onFace;
 
         // text on the accent itself: checked toggles, pressed buttons, selected rows and items
         var onAccent = new SolidColorBrush(TextOn(accent));
 
-        resources["OnAccentBrush"] = onAccent;
+        own["OnAccentBrush"] = onAccent;
 
         foreach (var key in OnAccentKeys)
         {
-            resources[key] = onAccent;
+            own[key] = onAccent;
         }
 
         // the panels of popups and the outlines of fields lean towards the accent: a popup is the window colour lifted towards it, on the light theme lifted towards white first,
         // and an outline sits between the two, greyed a little so it reads as an edge
-        var light = variant == ThemeVariant.Light;
         var popup = light ? Mix(Mix(main, shade, 0.5), accent, LightPopupMix) : Mix(main, accent, PopupMix);
         var outline = Mix(Mix(main, accent, OutlineMix), contrastSoft, light ? 0.3 : 0.12);
 
-        // whatever the theme paints with those shared brushes, the brushes themselves and the Fluent keys pointed at them, this window paints in its own,
-        // after taking back what it painted before, which the theme or the accent may since have moved away from
-        var painted = Painted.GetOrCreateValue(window);
-
-        foreach (var key in painted)
+        // whatever the theme paints with the shared accent, popup and outline brushes, the brushes themselves and the Fluent keys pointed at them, this window paints in its own
+        var replacements = new Dictionary<string, SolidColorBrush>
         {
-            resources.Remove(key);
-        }
-
-        painted.Clear();
-
-        var own = new Dictionary<SolidColorBrush, SolidColorBrush>
-        {
-            [accentBrush] = brush,
-            [popupBrush] = new SolidColorBrush(popup),
-            [outlineBrush] = new SolidColorBrush(outline),
+            ["AccentBrush"] = new SolidColorBrush(accent),
+            ["PopupBrush"] = new SolidColorBrush(popup),
+            ["OutlineBrush"] = new SolidColorBrush(outline),
         };
 
-        foreach (var (key, replacement) in ThemeKeysPainted(application, own, variant))
+        var painted = new Dictionary<SolidColorBrush, SolidColorBrush>();
+
+        foreach (var name in PaintedBrushes)
         {
-            painted.Add(key);
-            resources[key] = replacement;
+            if (application.TryFindResource(name, variant, out var themeBrush) && themeBrush is SolidColorBrush brush)
+            {
+                painted[brush] = replacements[name];
+            }
         }
+
+        foreach (var (key, brush) in ThemeKeysOf(application, variant))
+        {
+            if (painted.TryGetValue(brush, out var replacement))
+            {
+                own[key] = replacement;
+            }
+        }
+
+        // the last colouring goes and this one comes in its place, which is what the window and its popups take up
+        var merged = window.Resources.MergedDictionaries;
+
+        if (state.Own != null)
+        {
+            merged.Remove(state.Own);
+        }
+
+        state.Own = own;
+        merged.Add(own);
     }
 
-    /// <summary>The keys of the theme that are one of the brushes in <paramref name="own"/>, each with the brush this window paints in its place.</summary>
-    private static List<(object Key, SolidColorBrush Replacement)> ThemeKeysPainted(Application application, Dictionary<SolidColorBrush, SolidColorBrush> own, ThemeVariant variant)
+    /// <summary>The keys of the theme that hold one of the painted brushes, with the brush each holds.</summary>
+    private static List<(object Key, SolidColorBrush Brush)> ThemeKeysOf(Application application, ThemeVariant variant)
     {
-        var keys = new List<(object, SolidColorBrush)>();
+        if (ThemeKeys.TryGetValue(variant, out var keys))
+        {
+            return keys;
+        }
+
+        var painted = new HashSet<SolidColorBrush>();
+
+        foreach (var name in PaintedBrushes)
+        {
+            if (application.TryFindResource(name, variant, out var found) && found is SolidColorBrush brush)
+            {
+                painted.Add(brush);
+            }
+        }
+
+        keys = [];
 
         foreach (var provider in application.Resources.MergedDictionaries)
         {
@@ -165,17 +224,18 @@ public static class WindowAccent
 
             foreach (var key in dictionary.Keys)
             {
-                if (dictionary.TryGetResource(key, variant, out var value) && value is SolidColorBrush themeBrush && own.TryGetValue(themeBrush, out var replacement))
+                if (dictionary.TryGetResource(key, variant, out var value) && value is SolidColorBrush brush && painted.Contains(brush))
                 {
-                    keys.Add((key, replacement));
+                    keys.Add((key, brush));
                 }
             }
         }
 
+        ThemeKeys[variant] = keys;
+
         return keys;
     }
 
-    /// <summary>The colour <paramref name="amount"/> of the way from <paramref name="from"/> to <paramref name="to"/>.</summary>
     /// <summary>Black or white, whichever reads better on <paramref name="surface"/>: the one with the higher contrast ratio, which black has once the surface is light enough.</summary>
     private static Color TextOn(Color surface)
     {
@@ -191,6 +251,7 @@ public static class WindowAccent
         }
     }
 
+    /// <summary>The colour <paramref name="amount"/> of the way from <paramref name="from"/> to <paramref name="to"/>.</summary>
     private static Color Mix(Color from, Color to, double amount)
     {
         return Color.FromRgb(Step(from.R, to.R), Step(from.G, to.G), Step(from.B, to.B));
