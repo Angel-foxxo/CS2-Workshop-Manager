@@ -125,6 +125,9 @@ public partial class SubmissionView : UserControl
 
         Gallery.ItemsSource = gallery;
         gallery.CollectionChanged += (_, _) => GalleryHint.IsVisible = gallery.Count == 0;
+
+        // mouse 4 goes back wherever it is pressed in the view, seen before any control takes the press
+        AddHandler(PointerPressedEvent, OnViewPressed, RoutingStrategies.Tunnel);
     }
 
     /// <summary>
@@ -780,6 +783,15 @@ public partial class SubmissionView : UserControl
         Form.IsEnabled = !busy;
         BackButton.IsEnabled = CancelButton.IsEnabled = SubmitButton.IsEnabled = !busy;
         UploadProgress.IsVisible = busy;
+    }
+
+    private void OnViewPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsXButton1Pressed && BackButton.IsEnabled)
+        {
+            e.Handled = true;
+            OnCancel(sender, e);
+        }
     }
 
     private async void OnCancel(object? sender, RoutedEventArgs e)
