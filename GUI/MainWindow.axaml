@@ -118,6 +118,10 @@
         <Style Selector="DataGridRow:selected Border.pill, ListBox#TileItems ListBoxItem:selected Border.pill">
             <Setter Property="Background" Value="{DynamicResource SelectedPillBrush}" />
         </Style>
+        <!-- text on the accent, of a selected row or tile, a checked toggle and a pressed tool button, in what reads on that accent -->
+        <Style Selector="DataGridRow:selected TextBlock, DataGridRow:selected SelectableTextBlock, ListBox#TileItems ListBoxItem:selected TextBlock, ListBox#TileItems ListBoxItem:selected SelectableTextBlock, ToggleButton.tool:checked TextBlock, :is(Button).tool:pressed TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+        </Style>
 
         <!-- tiles are list items so one can be selected, shown by an accent halo in the tile margin -->
         <Style Selector="ListBox#TileItems ListBoxItem">

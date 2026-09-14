@@ -21,6 +21,7 @@ public sealed class AppSettings
 
     private const string VersionKey = "version";
     private const string ThemeKey = "theme";
+    private const string AccentKey = "accent";
     private const string RulesKey = "publish_rules";
 
     /// <summary>Where the settings are kept, under the user's application data folder: %AppData% on Windows, ~/.config on Linux.</summary>
@@ -37,6 +38,9 @@ public sealed class AppSettings
 
     /// <summary>The look of the apps, following the system unless set.</summary>
     public AppTheme Theme { get; set; }
+
+    /// <summary>The accent colour set over the theme's own, as #RRGGBB, or null for the theme's.</summary>
+    public string? Accent { get; set; }
 
     /// <summary>The packing rules that apply to every addon, checked before the addon's own rules and gameinfo's.</summary>
     public AddonRules GlobalRules { get; } = new();
@@ -67,6 +71,11 @@ public sealed class AppSettings
             settings.Theme = parsedTheme;
         }
 
+        if (settings.data.TryGetValue(AccentKey, out var accent) && (string)accent is { Length: > 0 } hex)
+        {
+            settings.Accent = hex;
+        }
+
         if (settings.data.TryGetValue(RulesKey, out var rules))
         {
             settings.GlobalRules.Read(rules);
@@ -81,11 +90,17 @@ public sealed class AppSettings
         var saved = KVObject.Collection();
         saved.Add(VersionKey, AppVersion.ToString());
         saved.Add(ThemeKey, Theme.ToString().ToLowerInvariant());
+
+        if (Accent != null)
+        {
+            saved.Add(AccentKey, Accent);
+        }
+
         saved.Add(RulesKey, GlobalRules.Write());
 
         foreach (var child in data.Children)
         {
-            if (child.Key is not (VersionKey or ThemeKey or RulesKey))
+            if (child.Key is not (VersionKey or ThemeKey or AccentKey or RulesKey))
             {
                 saved.Add(child.Key, child.Value);
             }

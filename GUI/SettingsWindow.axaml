@@ -14,16 +14,24 @@
         <DockPanel Margin="12">
             <TextBlock Name="Status" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="{DynamicResource ContrastBrush}" />
 
-            <!-- the theme, applied and saved as it is picked -->
+            <!-- the theme and the accent over it, applied and saved as they are picked -->
             <Border DockPanel.Dock="Top" Margin="0,0,0,12" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
-                <DockPanel>
-                    <ComboBox Name="ThemeBox" DockPanel.Dock="Right" Width="160" SelectionChanged="OnThemeChanged">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,12,Auto">
+                    <TextBlock Text="Theme" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource ContrastBrush}" />
+                    <ComboBox Grid.Column="1" Name="ThemeBox" Width="160" SelectionChanged="OnThemeChanged">
                         <ComboBoxItem Content="System" />
                         <ComboBoxItem Content="Light" />
                         <ComboBoxItem Content="Dark" />
                     </ComboBox>
-                    <TextBlock Text="Theme" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource ContrastBrush}" />
-                </DockPanel>
+                    <StackPanel Grid.Row="2" VerticalAlignment="Center">
+                        <TextBlock Text="Accent" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
+                        <TextBlock Text="The color for the window background gradient and highlights." Foreground="{DynamicResource ContrastSoftBrush}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <ColorPicker Name="AccentPicker" Width="96" IsAlphaEnabled="False" IsAlphaVisible="False" ColorChanged="OnAccentChanged" />
+                        <Button Name="AccentReset" Content="Reset" Click="OnAccentReset" ToolTip.Tip="Back to the theme's own accent" />
+                    </StackPanel>
+                </Grid>
             </Border>
 
             <!-- the packing rules for every addon, saved as they change -->
@@ -40,7 +48,10 @@
                         </StackPanel>
                         <TextBox Name="PatternBox" PlaceholderText="Enter a path such as materials/dev/" />
                     </DockPanel>
-                    <SelectableTextBlock Name="FilePath" DockPanel.Dock="Bottom" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource ContrastSoftBrush}" />
+                    <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                        <Button DockPanel.Dock="Right" Content="Open folder" Margin="8,0,0,0" Click="OnOpenFolder" />
+                        <SelectableTextBlock Name="FilePath" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource ContrastSoftBrush}" />
+                    </DockPanel>
                     <ScrollViewer>
                         <ItemsControl Name="RulesList">
                             <ItemsControl.ItemTemplate>

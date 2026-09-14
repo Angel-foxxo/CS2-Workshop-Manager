@@ -15,7 +15,7 @@
             <Color x:Key="DangerAccentColor">#DF1F1F</Color>
             <!-- what the main views lay over the gradient: light theme lightens, dark theme darkens -->
             <Color x:Key="ShadeColor">#FFFFFF</Color>
-            <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent -->
+            <!-- popups need a solid panel to read over content, and the outlines of fields and check boxes lean towards the accent. Both are derived again from each window's accent, see WindowAccent -->
             <Color x:Key="PopupColor">#E4EBF1</Color>
             <Color x:Key="OutlineColor">#8FA3B6</Color>
             <!-- headings in rendered descriptions, the blue Steam gives them -->
@@ -56,9 +56,13 @@
     <SolidColorBrush x:Key="ControlBrush" Color="{DynamicResource ContrastColor}" Opacity="0.08" />
     <SolidColorBrush x:Key="ControlHoverBrush" Color="{DynamicResource ContrastColor}" Opacity="0.16" />
     <SolidColorBrush x:Key="FieldBrush" Color="{DynamicResource ShadeColor}" Opacity="0.35" />
+    <!-- the accent as a see-through tint, for the chosen item of a dropdown, which reads with the theme's text whatever the accent -->
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentColor}" Opacity="0.35" />
     <SolidColorBrush x:Key="PopupBrush" Color="{DynamicResource PopupColor}" />
     <SolidColorBrush x:Key="OutlineBrush" Color="{DynamicResource OutlineColor}" />
     <SolidColorBrush x:Key="HeadingBrush" Color="{DynamicResource HeadingColor}" />
+    <!-- text on the accent, which each window sets to black or white by its own accent, see WindowAccent -->
+    <SolidColorBrush x:Key="OnAccentBrush" Color="{DynamicResource ContrastColor}" />
     <!-- text that warns, in the warning prompts' accent -->
     <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningAccentColor}" />
     <SolidColorBrush x:Key="TransparentBrush" Color="Transparent" />
@@ -105,10 +109,10 @@
     <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="PopupBrush" />
     <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="OutlineBrush" />
     <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="ControlHoverBrush" />
-    <StaticResource x:Key="ComboBoxItemBackgroundPressed" ResourceKey="AccentBrush" />
-    <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="AccentBrush" />
-    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentBrush" />
-    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPressed" ResourceKey="AccentBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundPressed" ResourceKey="AccentSoftBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="AccentSoftBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentSoftBrush" />
+    <StaticResource x:Key="ComboBoxItemBackgroundSelectedPressed" ResourceKey="AccentSoftBrush" />
 
     <!-- check boxes: the same well and outline as the fields -->
     <StaticResource x:Key="CheckBoxCheckBackgroundFillUnchecked" ResourceKey="FieldBrush" />
@@ -150,10 +154,10 @@
     <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="{DynamicResource BorderSoftColor}" />
     <SolidColorBrush x:Key="DataGridColumnHeaderDraggedBackgroundBrush" Color="{DynamicResource BorderSoftColor}" />
     <SolidColorBrush x:Key="DataGridRowHoveredBackgroundColor" Color="{DynamicResource BorderColor}" />
-    <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="{DynamicResource AccentColor}" />
-    <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="{DynamicResource AccentColor}" />
-    <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="{DynamicResource AccentColor}" />
-    <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="{DynamicResource AccentColor}" />
+    <StaticResource x:Key="DataGridRowSelectedBackgroundBrush" ResourceKey="AccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedHoveredBackgroundBrush" ResourceKey="AccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" ResourceKey="AccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" ResourceKey="AccentBrush" />
     <SolidColorBrush x:Key="DataGridGridLinesBrush" Opacity="0.4" Color="{DynamicResource ContrastSoftColor}" />
     <SolidColorBrush x:Key="DataGridFillerColumnGridLinesBrush" Color="{DynamicResource BorderSoftColor}" />
     <!-- headers keep no room for a sort arrow until a column is sorted, so labels get the whole column -->
