@@ -144,6 +144,11 @@ public partial class MainWindow : Window
         SizeTiles();
     }
 
+    private async void OnSettings(object? sender, RoutedEventArgs e)
+    {
+        await new SettingsWindow().ShowDialog(this);
+    }
+
     private void OnViewToggle(object? sender, RoutedEventArgs e)
     {
         var tiles = sender == TilesToggle;

@@ -168,6 +168,12 @@
                         <TextBlock Text="Tiles" />
                     </StackPanel>
                 </ToggleButton>
+                <Button Classes="tool" Click="OnSettings">
+                    <StackPanel>
+                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/settings.png" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                        <TextBlock Text="Settings" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
             <TextBox Name="SearchBox" Grid.Column="2" Width="260" Margin="12,0" VerticalAlignment="Center" PlaceholderText="Search submissions" TextChanged="OnSearchChanged" />
 

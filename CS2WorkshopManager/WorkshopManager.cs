@@ -209,6 +209,14 @@ public sealed class WorkshopManager
         return AddonRules.Load(AddonRules.GetPath(ContentRoot, addonName));
     }
 
+    /// <summary>
+    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win, then the addon's own.
+    /// </summary>
+    public AddonRules LoadPackingRules(string addonName)
+    {
+        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
+    }
+
     public void SaveRules(string addonName, AddonRules rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
@@ -636,7 +644,7 @@ public sealed class WorkshopManager
         var publishTime = DateTimeOffset.UtcNow;
 
         // only the info changes when there is no addon to upload
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime, LoadRules(options.AddonName));
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title!, publishTime, LoadPackingRules(options.AddonName));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);

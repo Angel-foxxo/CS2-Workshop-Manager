@@ -1,0 +1,92 @@
+using System.IO;
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using CS2WorkshopManager;
+
+namespace GUI;
+
+/// <summary>
+/// What holds for every addon: the packing rules that apply to all of them, listed and changed here and saved to the settings file as they change.
+/// </summary>
+public partial class SettingsWindow : Window
+{
+    private AppSettings settings = new();
+
+    public SettingsWindow()
+    {
+        InitializeComponent();
+
+        FilePath.Text = $"Settings file: {AppSettings.FilePath}";
+
+        try
+        {
+            settings = AppSettings.Load();
+            ShowRules();
+        }
+        catch (Exception exception)
+        {
+            // the settings file is hand editable too, so its parser's own errors are reported like the file system's
+            Status.Text = exception.Message;
+        }
+    }
+
+    private void ShowRules()
+    {
+        RulesList.ItemsSource = settings.GlobalRules.Rules.Select(rule => new RuleRow(rule)).ToList();
+    }
+
+    /// <summary>Applies a change to the rules and saves them, or says why it could not save.</summary>
+    private void ChangeRules(Action<AddonRules> change)
+    {
+        try
+        {
+            change(settings.GlobalRules);
+            settings.Save();
+            ShowRules();
+            Status.Text = string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Status.Text = exception.Message;
+        }
+    }
+
+    private void OnExclude(object? sender, RoutedEventArgs e)
+    {
+        AddRule(exclude: true);
+    }
+
+    private void OnInclude(object? sender, RoutedEventArgs e)
+    {
+        AddRule(exclude: false);
+    }
+
+    /// <summary>Makes the path typed in a rule, first so it wins over the rules before it, in place of any earlier rule for that path.</summary>
+    private void AddRule(bool exclude)
+    {
+        var pattern = AddonRules.Normalize(PatternBox.Text ?? string.Empty);
+
+        if (pattern.Length == 0)
+        {
+            Status.Text = "Type a path under the addon first, such as materials/dev/.";
+            return;
+        }
+
+        PatternBox.Text = string.Empty;
+
+        ChangeRules(current =>
+        {
+            current.Rules.RemoveAll(rule => rule.Pattern.Equals(pattern, StringComparison.OrdinalIgnoreCase));
+            current.Rules.Insert(0, new AddonRules.Rule(exclude, pattern));
+        });
+    }
+
+    private void OnRemoveRule(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is RuleRow row)
+        {
+            ChangeRules(current => current.Rules.Remove(row.Rule));
+        }
+    }
+}

@@ -229,7 +229,7 @@ public static class Commands
 
             if (stage_only)
             {
-                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadRules(addon));
+                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon));
 
                 Console.WriteLine($"Staged: {stagingPath}");
 
@@ -533,7 +533,7 @@ public static class Commands
         {
             var manager = Manager.OpenGame(game);
             var addonPath = Manager.OpenAddon(manager, addon);
-            var contents = AddonPackager.GetContents(addonPath, manager.GameInfoPath, manager.LoadRules(addon));
+            var contents = AddonPackager.GetContents(addonPath, manager.GameInfoPath, manager.LoadPackingRules(addon));
 
             foreach (var assetType in contents.AssetTypes)
             {
@@ -561,7 +561,7 @@ public static class Commands
         {
             var manager = Manager.OpenGame(game);
             var addonPath = Manager.OpenAddon(manager, addon);
-            var packed = AddonPackager.CollectFiles(addonPath, manager.GameInfoPath, manager.LoadRules(addon));
+            var packed = AddonPackager.CollectFiles(addonPath, manager.GameInfoPath, manager.LoadPackingRules(addon));
             var packedPaths = packed.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var files = all ? AddonPackager.ListFiles(addonPath) : packed;
 
@@ -698,25 +698,27 @@ public static class Commands
 }
 
 /// <summary>
-/// Custom include and exclude rules for an addon, kept in publish_rules.txt in its addon content root folder and applied ahead of gameinfo's when it is packed.
+/// Custom include and exclude rules, applied ahead of gameinfo's when an addon is packed: an addon's own, kept in publish_rules.txt in its content root folder,
+/// or with --global the ones that apply to every addon, kept in the app's settings file and checked before the addon's own.
 /// </summary>
 public static class RulesCommands
 {
     /// <summary>
-    /// Lists an addon's rules in the order they apply, the first matching rule deciding for a path.
+    /// Lists the rules in the order they apply, the first matching rule deciding for a path.
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="global">-g, The rules that apply to every addon, kept in the app's settings file, instead of an addon's own.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
-    public static int List(string addon, string? game = default)
+    public static int List(string? addon = default, bool global = false, string? game = default)
     {
-        return Change(addon, game, rules =>
+        return Change(addon, global, game, rules =>
         {
             foreach (var rule in rules.Rules)
             {
                 Console.WriteLine($"{(rule.Exclude ? "exclude" : "include"),-8} {rule.Pattern}");
             }
 
-            Console.WriteLine($"{rules.Rules.Count} rules in {AddonRules.FileName}");
+            Console.WriteLine(global ? $"{rules.Rules.Count} rules in {AppSettings.FilePath}, applied to every addon" : $"{rules.Rules.Count} rules in {AddonRules.FileName}");
 
             return false;
         });
@@ -727,10 +729,11 @@ public static class RulesCommands
     /// </summary>
     /// <param name="pattern">Path under the addon the rule starts with, a folder ending in a slash such as materials/dev/.</param>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="global">-g, Make a rule for every addon, kept in the app's settings file, instead of one for an addon. It wins over the addon's own rules.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
-    public static int Exclude([Argument] string pattern, string addon, string? game = default)
+    public static int Exclude([Argument] string pattern, string? addon = default, bool global = false, string? game = default)
     {
-        return Change(addon, game, rules => Insert(rules, new AddonRules.Rule(true, pattern)));
+        return Change(addon, global, game, rules => Insert(rules, new AddonRules.Rule(true, pattern), global));
     }
 
     /// <summary>
@@ -738,10 +741,11 @@ public static class RulesCommands
     /// </summary>
     /// <param name="pattern">Path under the addon the rule starts with, a folder ending in a slash such as materials/dev/.</param>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="global">-g, Make a rule for every addon, kept in the app's settings file, instead of one for an addon. It wins over the addon's own rules.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
-    public static int Include([Argument] string pattern, string addon, string? game = default)
+    public static int Include([Argument] string pattern, string? addon = default, bool global = false, string? game = default)
     {
-        return Change(addon, game, rules => Insert(rules, new AddonRules.Rule(false, pattern)));
+        return Change(addon, global, game, rules => Insert(rules, new AddonRules.Rule(false, pattern), global));
     }
 
     /// <summary>
@@ -749,10 +753,11 @@ public static class RulesCommands
     /// </summary>
     /// <param name="pattern">The path of the rules to remove, as they were given.</param>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="global">-g, Remove from the rules that apply to every addon, kept in the app's settings file, instead of an addon's own.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
-    public static int Remove([Argument] string pattern, string addon, string? game = default)
+    public static int Remove([Argument] string pattern, string? addon = default, bool global = false, string? game = default)
     {
-        return Change(addon, game, rules =>
+        return Change(addon, global, game, rules =>
         {
             var normalized = AddonRules.Normalize(pattern);
             var removed = rules.Rules.RemoveAll(rule => rule.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase));
@@ -769,7 +774,7 @@ public static class RulesCommands
     }
 
     /// <summary>Puts the rule first, after taking out any earlier rule for the same path, so the newest rule wins.</summary>
-    private static bool Insert(AddonRules rules, AddonRules.Rule rule)
+    private static bool Insert(AddonRules rules, AddonRules.Rule rule, bool global)
     {
         var normalized = AddonRules.Normalize(rule.Pattern);
 
@@ -781,16 +786,33 @@ public static class RulesCommands
         rules.Rules.RemoveAll(existing => existing.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase));
         rules.Rules.Insert(0, new AddonRules.Rule(rule.Exclude, normalized));
 
-        Console.WriteLine($"{(rule.Exclude ? "Excluded" : "Included")} {normalized}.");
+        Console.WriteLine($"{(rule.Exclude ? "Excluded" : "Included")} {normalized}{(global ? " for every addon" : "")}.");
 
         return true;
     }
 
-    /// <summary>Loads the addon's rules for <paramref name="change"/>, which says whether they need saving.</summary>
-    private static int Change(string addon, string? game, Func<AddonRules, bool> change)
+    /// <summary>Loads the addon's rules, or with <paramref name="global"/> the ones for every addon, for <paramref name="change"/>, which says whether they need saving.</summary>
+    private static int Change(string? addon, bool global, string? game, Func<AddonRules, bool> change)
     {
         return Manager.Run(() =>
         {
+            if (global)
+            {
+                var settings = AppSettings.Load();
+
+                if (change(settings.GlobalRules))
+                {
+                    settings.Save();
+                }
+
+                return;
+            }
+
+            if (addon == null)
+            {
+                throw new ArgumentException("Give --addon for an addon's rules, or --global for the rules that apply to every addon.");
+            }
+
             var manager = Manager.OpenGame(game);
             Manager.OpenAddon(manager, addon);
 

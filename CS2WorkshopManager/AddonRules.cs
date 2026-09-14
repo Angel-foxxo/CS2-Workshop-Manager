@@ -36,20 +36,35 @@ public sealed class AddonRules
         using var stream = File.OpenRead(path);
         var data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream, KVSerializerOptions.DefaultOptions);
 
-        foreach (var child in data.Root.Children)
-        {
-            var exclude = child.Key.Equals(ExcludeKey, StringComparison.OrdinalIgnoreCase);
-
-            if (exclude || child.Key.Equals(IncludeKey, StringComparison.OrdinalIgnoreCase))
-            {
-                rules.Rules.Add(new Rule(exclude, Normalize((string)child.Value)));
-            }
-        }
+        rules.Read(data.Root);
 
         return rules;
     }
 
     public void Save(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        using var stream = File.Create(path);
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Write(), "publish_rules");
+    }
+
+    /// <summary>Adds the rules a key values block holds, its "exclude" and "include" entries in their order.</summary>
+    internal void Read(KVObject block)
+    {
+        foreach (var child in block.Children)
+        {
+            var exclude = child.Key.Equals(ExcludeKey, StringComparison.OrdinalIgnoreCase);
+
+            if (exclude || child.Key.Equals(IncludeKey, StringComparison.OrdinalIgnoreCase))
+            {
+                Rules.Add(new Rule(exclude, Normalize((string)child.Value)));
+            }
+        }
+    }
+
+    /// <summary>The rules as a key values block, an "exclude" or "include" entry each in their order.</summary>
+    internal KVObject Write()
     {
         var data = KVObject.ListCollection();
 
@@ -58,10 +73,20 @@ public sealed class AddonRules
             data.Add(rule.Exclude ? ExcludeKey : IncludeKey, rule.Pattern);
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        return data;
+    }
 
-        using var stream = File.Create(path);
-        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, data, "publish_rules");
+    /// <summary>These rules followed by <paramref name="next"/>'s, as one set for packing by, leaving both as they are.</summary>
+    public AddonRules Then(AddonRules next)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+
+        var rules = new AddonRules();
+
+        rules.Rules.AddRange(Rules);
+        rules.Rules.AddRange(next.Rules);
+
+        return rules;
     }
 
     public void Add(Rule rule)

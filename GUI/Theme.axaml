@@ -59,6 +59,8 @@
     <SolidColorBrush x:Key="PopupBrush" Color="{DynamicResource PopupColor}" />
     <SolidColorBrush x:Key="OutlineBrush" Color="{DynamicResource OutlineColor}" />
     <SolidColorBrush x:Key="HeadingBrush" Color="{DynamicResource HeadingColor}" />
+    <!-- text that warns, in the warning prompts' accent -->
+    <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningAccentColor}" />
     <SolidColorBrush x:Key="TransparentBrush" Color="Transparent" />
 
 

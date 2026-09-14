@@ -59,7 +59,7 @@
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
                         <TextBlock DockPanel.Dock="Top" Margin="0,4,0,8" TextWrapping="Wrap" Foreground="{DynamicResource ContrastSoftBrush}"
-                                   Text="Every file in the addon, files ticked by default are packed by gameinfo.gi. A folder is ticked when all of its files are, and half ticked when some are. &#10;&#10;Untick a file or folder to keep it out, or tick one that is kept out to bring it in, custom packing rules are saved in publish_rules.txt in the addon's content root." />
+                                   Text="Every file in the addon, files ticked by default are packed by gameinfo.gi. A folder is ticked when all of its files are, and half ticked when some are. &#10;&#10;Untick a file or folder to keep it out, or tick one that is kept out to bring it in. Custom packing rules are saved in publish_rules.txt in the addon's content root, and the rules for every addon from the settings are counted in too." />
                         <TextBox Name="SearchBox" DockPanel.Dock="Top" Margin="0,0,0,8" PlaceholderText="Search files" TextChanged="OnSearchChanged" />
                         <TreeView Name="FilesTree" Background="Transparent" BorderThickness="0">
                             <TreeView.ItemTemplate>

@@ -314,7 +314,7 @@ public partial class SubmissionView : UserControl
 
         try
         {
-            var rules = manager.LoadRules(addon);
+            var rules = manager.LoadPackingRules(addon);
             var scanned = await Task.Run(() => AddonPackager.GetContents(addonPath, gameInfoPath, rules));
 
             // the selection moved on while this folder was scanned

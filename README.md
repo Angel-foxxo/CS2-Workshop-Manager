@@ -52,7 +52,7 @@ Exposes the full functionality that the base library and GUI expose, useful for 
 | `addons` | Lists the addon folders, marking the one open in the tools. |
 | `contents` | Shows what an addon would upload by asset type. |
 | `files` | Lists the files an addon would upload, or every file with `--all`. |
-| `rules` | Lists, adds and removes an addon's packing rules. |
+| `rules` | Lists, adds and removes an addon's packing rules, or with `--global` the ones that apply to every addon. |
 
 
 ### Example
@@ -101,6 +101,8 @@ The upload takes the files that `gameinfo.gi` lists under `VpkDirectories`, minu
 ```
 
 A rule matches everything whose path starts with its text, a folder ending in a slash. The first matching rule wins, and your rules are checked before gameinfo's. The Pack Filter window and the `rules` CLI command both write this file, and you can edit it by hand.
+
+Rules that should apply to every addon go in the app's settings file instead, `settings.txt` under `%AppData%\CS2WorkshopManager` on Windows or `~/.config/CS2WorkshopManager` on Linux, in a `publish_rules` block of the same shape. They are checked before the addon's own rules, so they win over them. The Settings window and `rules --global` write this file.
 
 ## Credits
 

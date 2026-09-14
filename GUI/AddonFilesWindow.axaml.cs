@@ -106,6 +106,7 @@ public partial class AddonFilesWindow : Window
     private readonly WorkshopManager manager;
 
     private AddonRules rules = new();
+    private AppSettings settings = new();
     private string? addon;
 
     /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
@@ -179,8 +180,10 @@ public partial class AddonFilesWindow : Window
         try
         {
             rules = manager.LoadRules(name);
+            settings = AppSettings.Load();
 
-            var current = rules;
+            // the addon is packed by the global rules and then its own
+            var current = settings.GlobalRules.Then(rules);
             var (packed, all) = await Task.Run(() =>
             {
                 var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, current);
