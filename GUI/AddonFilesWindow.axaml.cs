@@ -124,6 +124,9 @@ public partial class AddonFilesWindow : Window
     /// <summary>Whether a change is still being saved and scanned, during which what is shown is about to change.</summary>
     private bool changing;
 
+    /// <summary>Whether the map box is being filled from the addon, which is not a pick to generate from.</summary>
+    private bool showingMaps;
+
     public AddonFilesWindow(WorkshopManager manager, string? addon)
     {
         this.manager = manager;
@@ -186,6 +189,7 @@ public partial class AddonFilesWindow : Window
         {
             rules = manager.LoadRules(name);
             autoRules = manager.LoadAutoRules(name);
+            ShowMaps(addonPath);
 
             // what the addon is packed by, the same way a publish works it out, and what it would pack had nothing been generated
             var current = manager.LoadPackingRules(name);
@@ -263,6 +267,95 @@ public partial class AddonFilesWindow : Window
         {
             // the rules file is hand editable too, so its parser's own errors are reported like the file system's
             Status.Text = exception.Message;
+        }
+    }
+
+    /// <summary>
+    /// Fills the map box with the addon's compiled maps, the one named after the addon first and picked, and turns the whole thing off when it has none.
+    /// Which map is picked is not remembered, an addon almost always being about the map that carries its name.
+    /// </summary>
+    private void ShowMaps(string addonPath)
+    {
+        var maps = AddonUsage.FindMaps(addonPath);
+
+        // a rescan after generating keeps the map that was picked, which is the one the list now standing was made from
+        var picked = SelectedMap;
+
+        showingMaps = true;
+        MapBox.ItemsSource = maps;
+        MapBox.SelectedItem = picked != null && maps.Contains(picked, StringComparer.OrdinalIgnoreCase) ? picked : maps.FirstOrDefault();
+        showingMaps = false;
+
+        MapBox.IsEnabled = maps.Count > 0;
+        ExcludeUnused.IsEnabled = maps.Count > 0;
+        ExcludeUnused.IsChecked = autoRules.Rules.Count > 0;
+
+        if (maps.Count == 0)
+        {
+            UnusedNotice.Text = "This addon has no compiled map under maps, so there is nothing to tell the content it uses from the content it does not.";
+        }
+    }
+
+    /// <summary>The map to crawl, as the box has it.</summary>
+    private string? SelectedMap => MapBox.SelectedItem as string;
+
+    private async void OnMapChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        // a different map only matters once there is a list to make again
+        if (!showingMaps && ExcludeUnused.IsChecked == true)
+        {
+            await GenerateAsync();
+        }
+    }
+
+    private async void OnExcludeUnusedChanged(object? sender, RoutedEventArgs e)
+    {
+        await GenerateAsync();
+    }
+
+    /// <summary>
+    /// Crawls the picked map and saves what it does not reach, or throws the list away when the box is unticked, then shows the addon as it now packs.
+    /// The crawl reads every resource the map reaches and takes a while, so it is done off the window's thread with the button out of reach.
+    /// </summary>
+    private async Task GenerateAsync()
+    {
+        if (addon == null || changing)
+        {
+            return;
+        }
+
+        var name = addon;
+        var map = SelectedMap;
+        var wanted = ExcludeUnused.IsChecked == true;
+
+        changing = true;
+        ExcludeUnused.IsEnabled = false;
+        MapBox.IsEnabled = false;
+        Status.Text = wanted ? $"Reading {map}..." : "Clearing the generated rules...";
+
+        try
+        {
+            if (wanted)
+            {
+                await Task.Run(() => manager.GenerateAutoRules(name, map));
+            }
+            else
+            {
+                manager.SaveAutoRules(name, new AddonRules());
+            }
+
+            changing = false;
+            await ReloadAsync();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Status.Text = exception.Message;
+        }
+        finally
+        {
+            changing = false;
+            MapBox.IsEnabled = SelectedMap != null;
+            ExcludeUnused.IsEnabled = MapBox.IsEnabled;
         }
     }
 

@@ -252,6 +252,38 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
+    /// Crawls <paramref name="mapName"/>, or the addon's own map when that is null, and saves what it does not reach as the addon's generated rules.
+    /// A rule is only written for a file the upload would otherwise take, one for a file that is left out anyway saying nothing, and the biggest come first.
+    /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
+    /// </summary>
+    /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
+    public AddonUsage.Result GenerateAutoRules(string addonName, string? mapName = null)
+    {
+        var addonPath = Path.Combine(AddonsRoot, addonName);
+        var found = AddonUsage.Detect(addonPath, mapName);
+
+        if (!found.HasCompiledMap)
+        {
+            return found;
+        }
+
+        var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, LoadUserPackingRules(addonName))
+            .ToDictionary(file => AddonPackager.GetRelativePath(addonPath, file.FullName), file => file.Length, StringComparer.OrdinalIgnoreCase);
+
+        var written = found.Unused
+            .Where(packed.ContainsKey)
+            .OrderByDescending(path => packed[path])
+            .ToList();
+
+        var auto = new AddonRules();
+        auto.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
+
+        SaveAutoRules(addonName, auto);
+
+        return found with { Unused = written };
+    }
+
+    /// <summary>
     /// The addon folders under game/csgo_addons, without the folders the workshop manager keeps there itself.
     /// </summary>
     public IEnumerable<string> GetAddonNames()
