@@ -409,7 +409,7 @@ public static class Commands
     }
 
     /// <summary>
-    /// Lists the workshop items the logged in Steam account has published, newest first.
+    /// Lists the maps the logged in Steam account has published, newest first.
     /// </summary>
     public static async Task<int> List()
     {
@@ -425,7 +425,7 @@ public static class Commands
                 Console.WriteLine($"{item.PublishedFileId,-11} {VisibilityName(item.Visibility),-12} {item.TimeUpdated.ToLocalTime():yyyy-MM-dd HH:mm} {AddonContents.FormatSize(item.Size),10} {item.Subscribers,7:N0} {item.Views,8:N0} {item.Likes,7:N0} {item.Favorites,7:N0}  {item.Title} [{string.Join(", ", item.Tags)}]");
             }
 
-            Console.WriteLine($"{count} published items");
+            Console.WriteLine($"{count} published maps");
         }).ConfigureAwait(false);
     }
 

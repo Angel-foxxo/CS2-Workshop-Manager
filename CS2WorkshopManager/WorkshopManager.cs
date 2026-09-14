@@ -313,7 +313,7 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// Every workshop item the logged in account has published for Counter-Strike 2 with the CS2 tag, newest first, as Steam's pages of them arrive.
+    /// Every map the logged in account has published for Counter-Strike 2, the items with both the CS2 and Map tags, newest first, as Steam's pages of them arrive.
     /// </summary>
     public static async IAsyncEnumerable<WorkshopItem> GetPublishedItemsAsync()
     {
@@ -334,8 +334,11 @@ public sealed class WorkshopManager
 
             try
             {
-                // only items tagged as CS2 maps, the tag the workshop manager always sets
-                ugc.AddRequiredTag(query, DefaultTags[0]);
+                // only items with every tag the workshop manager always sets, which leaves the maps and not the skins and the rest tagged for the game
+                foreach (var tag in DefaultTags)
+                {
+                    ugc.AddRequiredTag(query, tag);
+                }
                 ugc.SetReturnLongDescription(query, true);
                 ugc.SetReturnAdditionalPreviews(query, true);
 

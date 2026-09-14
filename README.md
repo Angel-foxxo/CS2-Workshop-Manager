@@ -45,7 +45,7 @@ Exposes the full functionality that the base library and GUI expose, useful for 
 |---|---|
 | `upload` | Packs an addon and publishes it as a new item, or updates an existing item when `--id` is given. |
 | `edit` | Changes a published item's title, description, thumbnail, visibility or game modes, and adds or removes gallery screenshots and videos. |
-| `list` | Lists your published items with their counts. |
+| `list` | Lists your published maps with their counts. |
 | `view` | Opens an item's workshop page in the browser. |
 | `previews` | Lists the gallery under an item's thumbnail, with the indices that `edit --remove_previews` takes. |
 | `delete` | Deletes an item, after asking, or straight away with `--yes`. |

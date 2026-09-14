@@ -322,7 +322,7 @@ public partial class MainWindow : Window
 
             rows.Remove(row);
             shown.Remove(row);
-            Status.Text = $"Deleted {row.Title}, {rows.Count} published items";
+            Status.Text = $"Deleted {row.Title}, {rows.Count} published maps";
         }
         catch (SteamUnavailableException exception)
         {
@@ -381,7 +381,7 @@ public partial class MainWindow : Window
     /// <summary>How many items there are, and how many the search leaves when it leaves fewer.</summary>
     private void ShowCount()
     {
-        Status.Text = shown.Count == rows.Count ? $"{rows.Count} published items" : $"{shown.Count} of {rows.Count} published items";
+        Status.Text = shown.Count == rows.Count ? $"{rows.Count} published maps" : $"{shown.Count} of {rows.Count} published maps";
     }
 
     /// <summary>
