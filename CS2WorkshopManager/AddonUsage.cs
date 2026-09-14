@@ -201,9 +201,17 @@ public static class AddonUsage
                     return;
                 }
 
-                if (resource.DataBlock is BinaryKV3 or NTRO)
+                // models, materials, particles and the world hold their key values as a typed block, everything else as a plain one
+                var data = resource.DataBlock switch
                 {
-                    ReadKeyValues(resource.DataBlock.AsKeyValueCollection(), 0);
+                    KeyValuesOrNTRO typed => typed.Data,
+                    BinaryKV3 or NTRO => resource.DataBlock.AsKeyValueCollection(),
+                    _ => null,
+                };
+
+                if (data != null)
+                {
+                    ReadKeyValues(data, 0);
                 }
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnexpectedMagicException or NotImplementedException or ArgumentException)
