@@ -39,7 +39,7 @@
                     <Grid RowDefinitions="Auto,*">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
-                            <ScrollViewer MaxHeight="220">
+                            <ScrollViewer Name="RulesScroller">
                                 <ItemsControl Name="RulesList">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:RuleRow">

@@ -108,6 +108,9 @@ public partial class AddonFilesWindow : Window
     /// <summary>How many generated rules are listed before the rest are only counted, there being far too many to read.</summary>
     private const int MaxShownAutoRules = 100;
 
+    /// <summary>How tall the user's own rules grow to before they scroll, leaving the rest of the panel to the generated ones.</summary>
+    private const double MaxUserRulesHeight = 220;
+
     private AddonRules rules = new();
     private AddonRules autoRules = new();
     private string? addon;
@@ -369,6 +372,9 @@ public partial class AddonFilesWindow : Window
     private void ShowAutoRules(long takenSize)
     {
         AutoSection.IsVisible = autoRules.Rules.Count > 0;
+
+        // the user's own rules give up room only when there is a generated list to show underneath them
+        RulesScroller.MaxHeight = AutoSection.IsVisible ? MaxUserRulesHeight : double.PositiveInfinity;
 
         if (!AutoSection.IsVisible)
         {
