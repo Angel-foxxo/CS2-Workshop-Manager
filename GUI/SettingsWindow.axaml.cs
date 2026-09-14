@@ -7,7 +7,7 @@ using CS2WorkshopManager;
 namespace GUI;
 
 /// <summary>
-/// What holds for every addon: the packing rules that apply to all of them, listed and changed here and saved to the settings file as they change.
+/// What holds for every addon: the theme, and the packing rules that apply to all of them, changed here and saved to the settings file as they change.
 /// </summary>
 public partial class SettingsWindow : Window
 {
@@ -24,6 +24,9 @@ public partial class SettingsWindow : Window
             settings = AppSettings.Load();
             ShowRules();
 
+            // the choice is shown before its handler is wired to changes, so showing it does not save it
+            ThemeBox.SelectedIndex = (int)settings.Theme;
+
             if (settings.SavedByNewerApp)
             {
                 Status.Text = $"Saved by version {settings.SavedBy} of the app, newer than this version {AppSettings.AppVersion}, which can not use what that version added.";
@@ -32,6 +35,29 @@ public partial class SettingsWindow : Window
         catch (Exception exception)
         {
             // the settings file is hand editable too, so its parser's own errors are reported like the file system's
+            Status.Text = exception.Message;
+        }
+    }
+
+    private void OnThemeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var theme = (AppTheme)ThemeBox.SelectedIndex;
+
+        if (theme == settings.Theme)
+        {
+            return;
+        }
+
+        settings.Theme = theme;
+        App.ApplyTheme(theme);
+
+        try
+        {
+            settings.Save();
+            Status.Text = string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
             Status.Text = exception.Message;
         }
     }

@@ -27,6 +27,15 @@ public static class WindowAccent
     static WindowAccent()
     {
         ColorProperty.Changed.AddClassHandler<Window>((window, e) => Apply(window, e.GetNewValue<Color>()));
+
+        // the colouring is derived from the theme's colours, so it is derived again when the theme switches
+        ThemeVariantScope.ActualThemeVariantProperty.Changed.AddClassHandler<Window>((window, _) =>
+        {
+            if (window.IsSet(ColorProperty))
+            {
+                Apply(window, GetColor(window));
+            }
+        });
     }
 
     public static Color GetColor(Window window)

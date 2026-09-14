@@ -3,6 +3,14 @@ using ValveKeyValue;
 
 namespace CS2WorkshopManager;
 
+/// <summary>The look of the apps: the system's light or dark, or one of them whatever the system is.</summary>
+public enum AppTheme
+{
+    System,
+    Light,
+    Dark,
+}
+
 /// <summary>
 /// What the user has set for every game and addon alike, kept as settings.txt in the user's application data folder in the key values format of the game's own files.
 /// The file records the version of the app that saved it, and whatever a newer version put in it is kept through a save by an older one.
@@ -12,6 +20,7 @@ public sealed class AppSettings
     public const string FileName = "settings.txt";
 
     private const string VersionKey = "version";
+    private const string ThemeKey = "theme";
     private const string RulesKey = "publish_rules";
 
     /// <summary>Where the settings are kept, under the user's application data folder: %AppData% on Windows, ~/.config on Linux.</summary>
@@ -25,6 +34,9 @@ public sealed class AppSettings
 
     /// <summary>Whether the file was saved by a newer app than this one, which may have put in it what this one does not know.</summary>
     public bool SavedByNewerApp => SavedBy != null && SavedBy > AppVersion;
+
+    /// <summary>The look of the apps, following the system unless set.</summary>
+    public AppTheme Theme { get; set; }
 
     /// <summary>The packing rules that apply to every addon, checked before the addon's own rules and gameinfo's.</summary>
     public AddonRules GlobalRules { get; } = new();
@@ -50,6 +62,11 @@ public sealed class AppSettings
             settings.SavedBy = ThreeParts(parsed);
         }
 
+        if (settings.data.TryGetValue(ThemeKey, out var theme) && Enum.TryParse((string)theme, ignoreCase: true, out AppTheme parsedTheme))
+        {
+            settings.Theme = parsedTheme;
+        }
+
         if (settings.data.TryGetValue(RulesKey, out var rules))
         {
             settings.GlobalRules.Read(rules);
@@ -60,14 +77,15 @@ public sealed class AppSettings
 
     public void Save()
     {
-        // the version and the rules first, then whatever else was in the file as it was
+        // the version and the settings first, then whatever else was in the file as it was
         var saved = KVObject.Collection();
         saved.Add(VersionKey, AppVersion.ToString());
+        saved.Add(ThemeKey, Theme.ToString().ToLowerInvariant());
         saved.Add(RulesKey, GlobalRules.Write());
 
         foreach (var child in data.Children)
         {
-            if (child.Key is not (VersionKey or RulesKey))
+            if (child.Key is not (VersionKey or ThemeKey or RulesKey))
             {
                 saved.Add(child.Key, child.Value);
             }
