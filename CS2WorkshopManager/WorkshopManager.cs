@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -183,6 +184,9 @@ public sealed class WorkshopManager
     public const uint AppId = 730;
 
     public const int ThumbnailJpegQuality = 75;
+
+    /// <summary>The most a thumbnail may weigh, as Steam has it. Only matters for gifs, other images are made into a JPEG that fits.</summary>
+    public const long MaxThumbnailSize = 1024 * 1024;
 
     public static readonly string[] DefaultTags = ["CS2", "Map"];
 
@@ -757,13 +761,20 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// Throws when the file is not an image or gif stb can decode.
-    /// For gifs lets just upload them undecoded.. :aga:
+    /// Throws when the file is not an image stb can decode, or a gif that can be uploaded as it is.
     /// </summary>
     public static void ValidateThumbnailImage(string path)
     {
         if (IsGifFile(path))
         {
+            var size = new FileInfo(path).Length;
+
+            if (size >= MaxThumbnailSize)
+            {
+                throw new InvalidDataException($"Thumbnail gif '{path}' is {AddonContents.FormatSize(size)}, gifs are uploaded unchanged and the workshop takes thumbnails under 1 MB.");
+            }
+
+            ValidateGif(path, File.ReadAllBytes(path));
             return;
         }
 
@@ -778,6 +789,70 @@ public sealed class WorkshopManager
         return stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length && header.SequenceEqual("GIF8"u8);
     }
 
+    /// <summary>
+    /// Walks the blocks of a gif without decoding its pixels, since stb throws on valid gifs whose encoder keeps a full LZW dictionary
+    /// instead of clearing it, which optimizers like ezgif do.
+    /// </summary>
+    private static void ValidateGif(string path, ReadOnlySpan<byte> file)
+    {
+        var damaged = () => new InvalidDataException($"Thumbnail gif '{path}' is damaged.");
+
+        if (file.Length < 13 || BinaryPrimitives.ReadUInt16LittleEndian(file[6..]) == 0 || BinaryPrimitives.ReadUInt16LittleEndian(file[8..]) == 0)
+        {
+            throw damaged();
+        }
+
+        // header and logical screen descriptor, then the global color table when there is one
+        var position = 13 + GifColorTableSize(file[10]);
+        var images = 0;
+
+        // some encoders leave out the trailer, which viewers accept, so running out of file after an image is fine
+        while (position < file.Length && file[position] != 0x3B)
+        {
+            switch (file[position])
+            {
+                case 0x21: // extension: introducer, label, sub-blocks
+                    position = SkipGifSubBlocks(file, position + 2) ?? throw damaged();
+                    break;
+
+                case 0x2C: // image: descriptor, local color table, LZW minimum code size, sub-blocks
+                    if (position + 11 > file.Length)
+                    {
+                        throw damaged();
+                    }
+
+                    position += 10 + GifColorTableSize(file[position + 9]);
+                    position = SkipGifSubBlocks(file, position + 1) ?? throw damaged();
+                    images++;
+                    break;
+
+                default:
+                    throw damaged();
+            }
+        }
+
+        if (images == 0)
+        {
+            throw damaged();
+        }
+    }
+
+    private static int GifColorTableSize(byte flags)
+    {
+        return (flags & 0x80) != 0 ? 3 << ((flags & 7) + 1) : 0;
+    }
+
+    /// <summary>Returns the position after the terminating sub-block, or null when the file ends first.</summary>
+    private static int? SkipGifSubBlocks(ReadOnlySpan<byte> file, int position)
+    {
+        while (position < file.Length && file[position] != 0)
+        {
+            position += file[position] + 1;
+        }
+
+        return position < file.Length ? position + 1 : null;
+    }
+
     private static ImageResult DecodeThumbnailImage(string path)
     {
         using var stream = File.OpenRead(path);
@@ -786,8 +861,9 @@ public sealed class WorkshopManager
         {
             return ImageResult.FromStream(stream, StbImageSharp.ColorComponents.RedGreenBlue);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IndexOutOfRangeException or ArgumentException or OverflowException or NullReferenceException)
+        catch (Exception exception) when (exception is not IOException)
         {
+            // stb is a port of C, so a file it can not handle surfaces as whatever the port trips over, not just InvalidOperationException
             throw new InvalidDataException($"Thumbnail image '{path}' could not be decoded: {exception.Message.Trim()}", exception);
         }
     }

@@ -470,7 +470,7 @@ public partial class SubmissionView : UserControl
     {
         try
         {
-            // the check the upload makes, which decodes the whole image
+            // the check the upload makes, which decodes the whole image, or walks a gif since those are uploaded unchanged
             await Task.Run(() => WorkshopManager.ValidateThumbnailImage(path));
 
             var file = await File.ReadAllBytesAsync(path);
