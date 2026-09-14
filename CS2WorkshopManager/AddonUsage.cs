@@ -1,5 +1,7 @@
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using ValveKeyValue;
 using ValvePak;
 using ValveResourceFormat;
@@ -14,8 +16,15 @@ namespace CS2WorkshopManager;
 /// The map's vpk is read and every reference followed: what a resource names in its external reference list, what an entity holds in its
 /// properties, and what any other key values data has as a string that lands on a file of the addon. What is never reached is unused.
 /// </summary>
-public static class AddonUsage
+public static partial class AddonUsage
 {
+    /// <summary>
+    /// Anything in a script that is shaped like a path, two or more parts with a slash between them. What it lands on is checked against the
+    /// addon afterwards, so matching more than is meant costs nothing.
+    /// </summary>
+    [GeneratedRegex(@"[\w\-.]+(?:[/\\][\w\-.]+)+", RegexOptions.CultureInvariant)]
+    private static partial Regex PathLike { get; }
+
     /// <summary>
     /// Folders the game loads by name rather than through any reference, so nothing in them is ever unused however the crawl goes.
     /// </summary>
@@ -201,6 +210,12 @@ public static class AddonUsage
                     return;
                 }
 
+                if (resource.DataBlock is Panorama script)
+                {
+                    ReadScript(script);
+                    return;
+                }
+
                 // models, materials, particles and the world hold their key values as a typed block, everything else as a plain one
                 var data = resource.DataBlock switch
                 {
@@ -242,6 +257,26 @@ public static class AddonUsage
 
                     Want((string)value);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Takes in what a script names. A compiled script keeps the source as it was written rather than a list of what it uses, so the only
+        /// way to see an asset it loads is to read the paths out of the text. A path the script puts together as it runs cannot be seen at all.
+        /// </summary>
+        private void ReadScript(Panorama script)
+        {
+            // a panorama layout lists the images it draws apart from its text
+            foreach (var image in script.Images)
+            {
+                Want(image.Name);
+            }
+
+            var source = Encoding.UTF8.GetString(script.Data);
+
+            foreach (var match in PathLike.EnumerateMatches(source))
+            {
+                Want(source.AsSpan(match.Index, match.Length).ToString());
             }
         }
 

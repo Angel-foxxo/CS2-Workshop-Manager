@@ -104,13 +104,7 @@ The upload takes the files that `gameinfo.gi` lists under `VpkDirectories`, minu
 
 A rule matches everything whose path starts with its text, a folder ending in a slash. The first matching rule wins, and your rules are checked before gameinfo's. The Pack Filter window and the `rules` CLI command both write this file, and you can edit it by hand.
 
-### Excluding unused content
-
-Ticking "Exclude unused content" in the Pack Filter window reads the compiled map you pick, follows every asset it references, and writes an exclude rule for each file it never reaches into an `unused_content_auto_rules` block of the same file. The block records the map it was read from, and publishing makes the list again from that map so an upload is never packed against a stale reading. Unticking throws the list away.
-
-These rules are checked last, so any rule you wrote yourself wins over them, and ticking a file in the tree is how you bring one back.
-
-Assets a map only names indirectly, from script code or a console command, cannot be found this way, so look over the generated list before publishing.
+Ticking "Exclude unused content" in the Pack Filter window reads the compiled map you pick and writes an exclude rule for every file it never reaches into an `unused_content_auto_rules` block of the same file, which also records the map it read from. These are checked last, so your own rules win over them, and ticking a file in the tree brings it back. Publishing makes the list again from the same map. A script's paths are only found where they are written out in full, so look the list over before publishing.
 
 Rules that should apply to every addon go in the app's settings file instead, `settings.txt` under `%AppData%\CS2WorkshopManager` on Windows or `~/.config/CS2WorkshopManager` on Linux, in a `publish_rules` block of the same shape. They are checked before the addon's own rules, so they win over them. The Settings window and `rules --global` write this file.
 
