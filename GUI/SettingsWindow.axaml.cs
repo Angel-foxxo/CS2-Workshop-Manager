@@ -23,6 +23,11 @@ public partial class SettingsWindow : Window
         {
             settings = AppSettings.Load();
             ShowRules();
+
+            if (settings.SavedByNewerApp)
+            {
+                Status.Text = $"Saved by version {settings.SavedBy} of the app, newer than this version {AppSettings.AppVersion}, which can not use what that version added.";
+            }
         }
         catch (Exception exception)
         {

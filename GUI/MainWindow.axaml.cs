@@ -161,7 +161,29 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
+        await WarnOfNewerSettingsAsync();
         await LoadItemsAsync();
+    }
+
+    /// <summary>Says so when the settings were saved by a newer app than this, since it may not know all that is in them.</summary>
+    private async Task WarnOfNewerSettingsAsync()
+    {
+        AppSettings settings;
+
+        try
+        {
+            settings = AppSettings.Load();
+        }
+        catch (Exception)
+        {
+            // a settings file that can not be read is reported in the settings window, where it can be dealt with
+            return;
+        }
+
+        if (settings.SavedByNewerApp)
+        {
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "Newer Settings", $"The settings were saved by version {settings.SavedBy} of the app, and this is version {AppSettings.AppVersion}.\n\nWhat that version added is kept as it is, but this one can not use it.");
+        }
     }
 
     private async void OnRefresh(object? sender, RoutedEventArgs e)

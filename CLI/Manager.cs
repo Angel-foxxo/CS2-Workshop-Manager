@@ -800,6 +800,11 @@ public static class RulesCommands
             {
                 var settings = AppSettings.Load();
 
+                if (settings.SavedByNewerApp)
+                {
+                    Console.Error.WriteLine($"Warning: the settings were saved by version {settings.SavedBy} of the app, newer than this version {AppSettings.AppVersion}, which can not use what that version added.");
+                }
+
                 if (change(settings.GlobalRules))
                 {
                     settings.Save();
