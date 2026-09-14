@@ -1,12 +1,8 @@
 name: Release
 
+# releases the version in Directory.Build.props: bump it there, push, then run this
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release, e.g. 1.2.0 or 1.2.0-alpha.1"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -24,7 +20,10 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write # push the release commit and tag
+      contents: write # push the tag
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
     - uses: actions/checkout@v7
@@ -36,32 +35,31 @@ jobs:
           exit 1
         fi
 
-    - name: Validate release version
-      env:
-        VERSION: ${{ inputs.version }}
+    - name: Read release version
+      id: version
       run: |
+        VERSION="$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' Directory.Build.props)"
         if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-          echo "Invalid semver version: $VERSION"
+          echo "Invalid semver version in Directory.Build.props: $VERSION"
           exit 1
         fi
+        if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null; then
+          echo "v${VERSION} is already released, bump the version in Directory.Build.props first"
+          exit 1
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
     - name: Configure Git author
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-    - name: Create release commit and tag
+    - name: Create tag
       env:
-        VERSION: ${{ inputs.version }}
+        VERSION: ${{ steps.version.outputs.version }}
       run: |
         set -eux
-        # builds between releases are numbered from the last released major.minor
-        BASE="$(cut -d. -f1,2 <<< "$VERSION")"
-        sed -i "s|<ProjectBaseVersion>.*</ProjectBaseVersion>|<ProjectBaseVersion>${BASE}</ProjectBaseVersion>|" */*.csproj
-        git add */*.csproj
-        git diff --cached --quiet || git commit -m "chore(release): publish ${VERSION}"
         git tag "v${VERSION}"
-        git push origin HEAD:main
         git push origin "v${VERSION}"
 
   build:
@@ -82,27 +80,24 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    env:
-      VERSION_ARGS: -p:ProjectVersion=${{ inputs.version }}
-
     steps:
     - uses: actions/checkout@v7
       with:
-        ref: v${{ inputs.version }}
+        ref: v${{ needs.tag.outputs.version }}
     - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Build
-      run: dotnet build --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopManager.slnx
+      run: dotnet build --configuration Release CS2WorkshopManager.slnx
 
     - name: Pack nupkg
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet pack --configuration Release ${{ env.VERSION_ARGS }} CS2WorkshopManager/CS2WorkshopManager.csproj
+      run: dotnet pack --configuration Release CS2WorkshopManager/CS2WorkshopManager.csproj
 
     - name: Publish CS2WorkshopManager-CLI
-      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} CLI/CLI.csproj
+      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} CLI/CLI.csproj
 
     - name: Publish CS2WorkshopManager-GUI
-      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} ${{ env.VERSION_ARGS }} GUI/GUI.csproj
+      run: dotnet publish --configuration Release --runtime ${{ matrix.runtime }} GUI/GUI.csproj
 
     - name: Upload nupkg
       uses: actions/upload-artifact@v7
@@ -125,7 +120,7 @@ jobs:
 
   publish:
     name: Publish
-    needs: build
+    needs: [tag, build]
     runs-on: ubuntu-latest
 
     permissions:
@@ -157,10 +152,10 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v3
       with:
-        tag_name: v${{ inputs.version }}
-        name: v${{ inputs.version }}
+        tag_name: v${{ needs.tag.outputs.version }}
+        name: v${{ needs.tag.outputs.version }}
         draft: true
-        prerelease: ${{ contains(inputs.version, '-') }}
+        prerelease: ${{ contains(needs.tag.outputs.version, '-') }}
         generate_release_notes: true
         files: release/*
       env:
