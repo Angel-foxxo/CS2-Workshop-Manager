@@ -133,6 +133,16 @@
         <Style Selector="ListBox#TileItems ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
         </Style>
+        <!-- the theme's clear button, put in whenever there is a search rather than only while the box has the focus -->
+        <Style Selector="TextBox#SearchBox:not(:empty)">
+            <Setter Property="InnerRightContent">
+                <Template>
+                    <Button Theme="{DynamicResource FluentTextBoxButton}" Command="{Binding $parent[TextBox].Clear}" ClipToBounds="True" Width="20" Height="20" MinWidth="0" Padding="0" Margin="0,0,4,0" VerticalAlignment="Center">
+                        <PathIcon Data="{DynamicResource TextBoxClearButtonData}" Height="10" Width="10" />
+                    </Button>
+                </Template>
+            </Setter>
+        </Style>
     </Window.Styles>
 
     <Panel>

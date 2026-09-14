@@ -78,6 +78,9 @@
     <!-- a checked toggle keeps the accent under the pointer, instead of Fluent brightening it with the system accent -->
     <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="AccentBrush" />
     <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentBrush" />
+    <!-- the button inside a text box, like the search's clear, only tints when pressed instead of flashing the system accent -->
+    <StaticResource x:Key="TextControlButtonBackgroundPressed" ResourceKey="ControlHoverBrush" />
+    <StaticResource x:Key="TextControlButtonForegroundPressed" ResourceKey="ContrastBrush" />
     <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="AccentBrush" />
     <!-- the highlighted button of a dialog: the dialog gives it its own face, the text stays the theme's -->
     <StaticResource x:Key="AccentButtonForeground" ResourceKey="ContrastBrush" />
