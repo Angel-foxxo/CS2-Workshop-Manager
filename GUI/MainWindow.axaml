@@ -220,8 +220,9 @@
         <!-- the two views share the space left by the bars, only one is visible -->
         <Panel>
         <ScrollViewer Name="Tiles" IsVisible="False" Background="{DynamicResource ShadeBrush}">
-            <!-- this panel is always the viewport width, which sizes the tiles to whole columns, see OnTilesViewportSizeChanged -->
+            <!-- this panel is always the viewport width, which sizes the tiles to whole columns, see SizeTiles, and the tiles are scaled whole by the zoom -->
             <Panel SizeChanged="OnTilesViewportSizeChanged">
+                <LayoutTransformControl Name="TileZoom" HorizontalAlignment="Center">
                 <ListBox Name="TileItems" Margin="4" HorizontalAlignment="Center" Background="Transparent" BorderThickness="0" SelectionMode="Single" ContextMenu="{StaticResource ItemMenu}" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -275,6 +276,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+                </LayoutTransformControl>
             </Panel>
         </ScrollViewer>
 

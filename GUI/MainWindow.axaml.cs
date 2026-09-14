@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using CS2WorkshopManager;
 using Steamworks;
@@ -17,11 +18,20 @@ namespace GUI;
 
 public partial class MainWindow : Window
 {
-    /// <summary>Thumbnails are decoded at the tile size and drawn smaller in the list.</summary>
-    private const int ThumbnailSize = 240;
+    /// <summary>Thumbnails are decoded at the tile size at the largest zoom and drawn smaller elsewhere.</summary>
+    private const int ThumbnailSize = 360;
 
-    /// <summary>A tile in the tiles view including its margins.</summary>
+    /// <summary>A tile in the tiles view including its margins, before the zoom.</summary>
     private const double TileWidth = 264;
+
+    /// <summary>The sizes the tiles can be shown at, as a fraction of their drawn size.</summary>
+    private static readonly double[] ZoomLevels = [0.2, 0.4, 0.6, 0.8, 1, 1.25, 1.5, 1.75, 2];
+
+    /// <summary>The zoom the tiles are at, as an index into <see cref="ZoomLevels"/>.</summary>
+    private int zoomLevel = 4;
+
+    /// <summary>The width the tiles have to fit in, kept for refitting them when the zoom changes.</summary>
+    private double tilesViewportWidth;
 
     /// <summary>The workshop manager's own wording.</summary>
     private const string DeleteConfirmation = "This will delete the submission from the workshop and users subscribed to it will no longer be able to access it.\n\nThis action cannot be undone!\n\nAre you sure you want to delete the submission?";
@@ -52,6 +62,9 @@ public partial class MainWindow : Window
         TileItems.AddHandler(PointerPressedEvent, OnItemPressed, RoutingStrategies.Tunnel);
         PublishedItems.AddHandler(DoubleTappedEvent, OnItemDoubleTapped, handledEventsToo: true);
         TileItems.AddHandler(DoubleTappedEvent, OnItemDoubleTapped, handledEventsToo: true);
+
+        // Ctrl and the wheel zoom the tiles, seen before the scroll viewer takes the wheel
+        Tiles.AddHandler(PointerWheelChangedEvent, OnTilesWheel, RoutingStrategies.Tunnel);
     }
 
     /// <summary>
@@ -98,14 +111,37 @@ public partial class MainWindow : Window
         return container?.DataContext as WorkshopItemRow;
     }
 
-    /// <summary>
-    /// Sizes the tiles to the whole columns that fit the viewport, so their centering splits the leftover width evenly.
-    /// </summary>
     private void OnTilesViewportSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var columns = Math.Max(1, (int)((e.NewSize.Width - TileItems.Margin.Left - TileItems.Margin.Right) / TileWidth));
+        tilesViewportWidth = e.NewSize.Width;
+        SizeTiles();
+    }
+
+    /// <summary>
+    /// Sizes the tiles to the whole columns that fit the viewport at the zoom, so their centering splits the leftover width evenly.
+    /// </summary>
+    private void SizeTiles()
+    {
+        var columns = Math.Max(1, (int)((tilesViewportWidth / ZoomLevels[zoomLevel] - TileItems.Margin.Left - TileItems.Margin.Right) / TileWidth));
 
         TileItems.Width = columns * TileWidth;
+    }
+
+    /// <summary>Ctrl and the wheel move the tiles' zoom a level, scaling the tiles whole and refitting the columns.</summary>
+    private void OnTilesWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        zoomLevel = Math.Clamp(zoomLevel + Math.Sign(e.Delta.Y), 0, ZoomLevels.Length - 1);
+
+        var zoom = ZoomLevels[zoomLevel];
+
+        TileZoom.LayoutTransform = new ScaleTransform(zoom, zoom);
+        SizeTiles();
     }
 
     private void OnViewToggle(object? sender, RoutedEventArgs e)
