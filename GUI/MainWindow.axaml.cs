@@ -239,8 +239,8 @@ public partial class MainWindow : Window
 
         if (published != null)
         {
-            // the workshop manager opens the published item's page
-            await Launcher.LaunchUriAsync(published.Result.Url);
+            // the workshop manager opens the published item's page, here in Steam
+            await Launcher.LaunchUriAsync(published.Result.SteamUrl);
             await LoadItemsAsync();
 
             if (published.Result.NeedsWorkshopAgreement)
@@ -296,9 +296,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!await Launcher.LaunchUriAsync(row.Item.Url))
+        if (!await Launcher.LaunchUriAsync(row.Item.SteamUrl))
         {
-            await MessageDialog.ShowAsync(this, MessageKind.Warning, "View", $"Could not open {row.Item.Url}");
+            await MessageDialog.ShowAsync(this, MessageKind.Warning, "View", $"Could not open {row.Item.Title} in Steam.");
         }
     }
 

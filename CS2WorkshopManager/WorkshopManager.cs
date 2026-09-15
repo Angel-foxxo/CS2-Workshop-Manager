@@ -61,6 +61,9 @@ public sealed record AddonPublishOptions
 public sealed record WorkshopPublishResult(ulong PublishedFileId, bool NeedsWorkshopAgreement)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
+
+    /// <summary>The item's page in the Steam client, which Steam opens when it is running.</summary>
+    public Uri SteamUrl => new($"steam://url/CommunityFilePage/{PublishedFileId}");
 }
 
 /// <summary>
@@ -154,6 +157,9 @@ public sealed record WorkshopItem(
     IReadOnlyList<WorkshopPreview> Previews)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
+
+    /// <summary>The item's page in the Steam client, which Steam opens when it is running.</summary>
+    public Uri SteamUrl => new($"steam://url/CommunityFilePage/{PublishedFileId}");
 }
 
 public sealed class SourceFolderConflictException : InvalidOperationException

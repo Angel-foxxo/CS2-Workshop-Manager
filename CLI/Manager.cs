@@ -436,16 +436,16 @@ public static class Commands
     }
 
     /// <summary>
-    /// Opens a published item's workshop page in the browser.
+    /// Opens a published item's workshop page in Steam.
     /// </summary>
     /// <param name="id">-i, Workshop ID of the submission.</param>
     public static int View(ulong id)
     {
-        var url = new WorkshopPublishResult(id, false).Url.ToString();
+        var result = new WorkshopPublishResult(id, false);
 
-        Console.WriteLine(url);
+        Console.WriteLine(result.Url);
 
-        using var browser = Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        using var steam = Process.Start(new ProcessStartInfo(result.SteamUrl.ToString()) { UseShellExecute = true });
 
         return 0;
     }
