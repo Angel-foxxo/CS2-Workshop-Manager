@@ -225,18 +225,69 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win, then the addon's own.
+    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win,
+    /// then the addon's own, and last the generated ones, which every rule the user made therefore wins over.
     /// </summary>
     public AddonRules LoadPackingRules(string addonName)
+    {
+        return LoadUserPackingRules(addonName).Then(LoadAutoRules(addonName));
+    }
+
+    /// <summary>
+    /// The same without the generated rules, which is what an upload would pack if nothing had been generated, and so what a generated list is measured against.
+    /// </summary>
+    public AddonRules LoadUserPackingRules(string addonName)
     {
         return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
     }
 
+    /// <summary>The rules a crawl of <paramref name="addonName"/>'s map generated, none when nothing has been generated for it.</summary>
+    public AddonRules LoadAutoRules(string addonName)
+    {
+        return AddonRules.LoadAuto(AddonRules.GetPath(ContentRoot, addonName));
+    }
+
     public void SaveRules(string addonName, AddonRules rules)
     {
-        ArgumentNullException.ThrowIfNull(rules);
+        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), rules, LoadAutoRules(addonName));
+    }
 
-        rules.Save(AddonRules.GetPath(ContentRoot, addonName));
+    public void SaveAutoRules(string addonName, AddonRules auto)
+    {
+        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), LoadRules(addonName), auto);
+    }
+
+    /// <summary>
+    /// Crawls <paramref name="mapName"/>, or the addon's own map when that is null, and saves what it does not reach as the addon's generated rules.
+    /// A rule is only written for a file the upload would otherwise take, one for a file that is left out anyway saying nothing, and the biggest come first.
+    /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
+    /// </summary>
+    /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
+    public AddonUsage.Result GenerateAutoRules(string addonName, string? mapName = null)
+    {
+        var addonPath = Path.Combine(AddonsRoot, addonName);
+        var found = AddonUsage.Detect(addonPath, mapName);
+
+        if (!found.HasCompiledMap)
+        {
+            return found;
+        }
+
+        var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, LoadUserPackingRules(addonName))
+            .ToDictionary(file => AddonPackager.GetRelativePath(addonPath, file.FullName), file => file.Length, StringComparer.OrdinalIgnoreCase);
+
+        var written = found.Unused
+            .Where(packed.ContainsKey)
+            .OrderByDescending(path => packed[path])
+            .ToList();
+
+        // a crawl that found a map always lists it first, that being the one it started from
+        var auto = new AddonRules { Map = found.Maps[0] };
+        auto.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
+
+        SaveAutoRules(addonName, auto);
+
+        return found with { Unused = written };
     }
 
     /// <summary>
@@ -662,6 +713,12 @@ public sealed class WorkshopManager
         var publishedFileId = options.PublishedFileId ?? await CreateItemAsync().ConfigureAwait(false);
 
         var publishTime = DateTimeOffset.UtcNow;
+
+        // a generated list is only as true as the map it was read from, so an addon using one has it made again from that same map before packing
+        if (options.AddonName != null && LoadAutoRules(options.AddonName) is { Rules.Count: > 0 } generated)
+        {
+            GenerateAutoRules(options.AddonName, generated.Map);
+        }
 
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
         var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName) : options.Rules.Then(LoadPackingRules(options.AddonName)));

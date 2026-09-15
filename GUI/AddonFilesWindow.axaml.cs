@@ -105,8 +105,14 @@ public partial class AddonFilesWindow : Window
 {
     private readonly WorkshopManager manager;
 
+    /// <summary>How many generated rules are listed before the rest are only counted, there being far too many to read.</summary>
+    private const int MaxShownAutoRules = 100;
+
+    /// <summary>How tall the user's own rules grow to before they scroll, leaving the rest of the panel to the generated ones.</summary>
+    private const double MaxUserRulesHeight = 220;
+
     private AddonRules rules = new();
-    private AppSettings settings = new();
+    private AddonRules autoRules = new();
     private string? addon;
 
     /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
@@ -120,6 +126,9 @@ public partial class AddonFilesWindow : Window
 
     /// <summary>Whether a change is still being saved and scanned, during which what is shown is about to change.</summary>
     private bool changing;
+
+    /// <summary>Whether the map box is being filled from the addon, which is not a pick to generate from.</summary>
+    private bool showingMaps;
 
     public AddonFilesWindow(WorkshopManager manager, string? addon)
     {
@@ -163,11 +172,15 @@ public partial class AddonFilesWindow : Window
             Contents.Contents = null;
             RulesList.ItemsSource = null;
             FilesTree.ItemsSource = null;
+            autoRules = new AddonRules();
+            ShowAutoRules(0);
             return;
         }
 
         // a rescan after a rule change keeps the last count up until the new one is ready, instead of flashing through "Scanning"
-        if (addon != name)
+        var switched = addon != name;
+
+        if (switched)
         {
             Status.Text = $"Scanning {name}...";
         }
@@ -180,11 +193,13 @@ public partial class AddonFilesWindow : Window
         try
         {
             rules = manager.LoadRules(name);
-            settings = AppSettings.Load();
+            autoRules = manager.LoadAutoRules(name);
+            ShowMaps(addonPath, switched ? null : SelectedMap);
 
-            // the addon is packed by the global rules and then its own
-            var current = settings.GlobalRules.Then(rules);
-            var (packed, all) = await Task.Run(() =>
+            // what the addon is packed by, the same way a publish works it out, and what it would pack had nothing been generated
+            var current = manager.LoadPackingRules(name);
+            var withoutGenerated = autoRules.Rules.Count == 0 ? null : manager.LoadUserPackingRules(name);
+            var (packed, all, generatedSize) = await Task.Run(() =>
             {
                 var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, current);
                 var packedPaths = packedFiles.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -193,7 +208,14 @@ public partial class AddonFilesWindow : Window
                     .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                return (packedFiles, every);
+                // what the generated rules took out is what the user's own rules would have packed and these do not
+                var taken = withoutGenerated == null
+                    ? 0
+                    : AddonPackager.CollectFiles(addonPath, gameInfoPath, withoutGenerated)
+                        .Where(file => !packedPaths.Contains(file.FullName))
+                        .Sum(file => file.Length);
+
+                return (packedFiles, every, taken);
             });
 
             // the selection moved on while this addon was scanned
@@ -204,6 +226,7 @@ public partial class AddonFilesWindow : Window
 
             Contents.Contents = AddonContents.FromFiles(packed);
             RulesList.ItemsSource = rules.Rules.Select(rule => new RuleRow(rule)).ToList();
+            ShowAutoRules(generatedSize);
 
             // the same files as before only change their ticks and sizes, which the game rewrites as it runs, so the tree keeps its nodes, its scroll and what is expanded
             if (files.Count == all.Count && files.Zip(all).All(pair => pair.First.RelativePath == pair.Second.Path))
@@ -250,6 +273,118 @@ public partial class AddonFilesWindow : Window
             // the rules file is hand editable too, so its parser's own errors are reported like the file system's
             Status.Text = exception.Message;
         }
+    }
+
+    /// <summary>
+    /// Fills the map box with the addon's compiled maps and turns the whole thing off when the addon has none. What is picked is what
+    /// <paramref name="keep"/> asks for, then the map a standing list was made from, and otherwise the one carrying the addon's name.
+    /// </summary>
+    /// <param name="keep">The map to stay on, for a rescan of the same addon, or null when the addon has changed under it.</param>
+    private void ShowMaps(string addonPath, string? keep)
+    {
+        var maps = AddonUsage.FindMaps(addonPath);
+
+        var picked = new[] { keep, autoRules.Map }
+            .FirstOrDefault(map => map != null && maps.Contains(map, StringComparer.OrdinalIgnoreCase)) ?? maps.FirstOrDefault();
+
+        showingMaps = true;
+        MapBox.ItemsSource = maps;
+        MapBox.SelectedItem = picked;
+        showingMaps = false;
+
+        MapBox.IsEnabled = maps.Count > 0;
+        ExcludeUnused.IsEnabled = maps.Count > 0;
+        ExcludeUnused.IsChecked = autoRules.Rules.Count > 0;
+
+        if (maps.Count == 0)
+        {
+            UnusedNotice.Text = "This addon has no compiled map under maps, so there is nothing to tell the content it uses from the content it does not.";
+        }
+    }
+
+    /// <summary>The map to crawl, as the box has it.</summary>
+    private string? SelectedMap => MapBox.SelectedItem as string;
+
+    private async void OnMapChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        // a different map only matters once there is a list to make again
+        if (!showingMaps && ExcludeUnused.IsChecked == true)
+        {
+            await GenerateAsync();
+        }
+    }
+
+    private async void OnExcludeUnusedChanged(object? sender, RoutedEventArgs e)
+    {
+        await GenerateAsync();
+    }
+
+    /// <summary>
+    /// Crawls the picked map and saves what it does not reach, or throws the list away when the box is unticked, then shows the addon as it now packs.
+    /// The crawl reads every resource the map reaches and takes a while, so it is done off the window's thread with the button out of reach.
+    /// </summary>
+    private async Task GenerateAsync()
+    {
+        if (addon == null || changing)
+        {
+            return;
+        }
+
+        var name = addon;
+        var map = SelectedMap;
+        var wanted = ExcludeUnused.IsChecked == true;
+
+        changing = true;
+        ExcludeUnused.IsEnabled = false;
+        MapBox.IsEnabled = false;
+        Status.Text = wanted ? $"Reading {map}..." : "Clearing the generated rules...";
+
+        try
+        {
+            if (wanted)
+            {
+                await Task.Run(() => manager.GenerateAutoRules(name, map));
+            }
+            else
+            {
+                manager.SaveAutoRules(name, new AddonRules());
+            }
+
+            changing = false;
+            await ReloadAsync();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Status.Text = exception.Message;
+        }
+        finally
+        {
+            changing = false;
+            MapBox.IsEnabled = SelectedMap != null;
+            ExcludeUnused.IsEnabled = MapBox.IsEnabled;
+        }
+    }
+
+    /// <summary>
+    /// Shows the generated rules and what they take out of the upload, or nothing at all when none have been generated for the addon.
+    /// Only the first of them are listed, since a crawl writes a rule per file and there can be thousands.
+    /// </summary>
+    private void ShowAutoRules(long takenSize)
+    {
+        AutoSection.IsVisible = autoRules.Rules.Count > 0;
+
+        // the user's own rules give up room only when there is a generated list to show underneath them
+        RulesScroller.MaxHeight = AutoSection.IsVisible ? MaxUserRulesHeight : double.PositiveInfinity;
+
+        if (!AutoSection.IsVisible)
+        {
+            AutoRulesList.ItemsSource = null;
+            return;
+        }
+
+        AutoSummary.Text = $"{autoRules.Rules.Count} rules, {AddonContents.FormatSize(takenSize)} kept out";
+        AutoRulesList.ItemsSource = autoRules.Rules.Take(MaxShownAutoRules).Select(rule => new RuleRow(rule)).ToList();
+        AutoMore.Text = autoRules.Rules.Count > MaxShownAutoRules ? $"{autoRules.Rules.Count - MaxShownAutoRules} more" : string.Empty;
     }
 
     /// <summary>

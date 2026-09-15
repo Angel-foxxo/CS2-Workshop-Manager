@@ -36,22 +36,43 @@
             <Grid ColumnDefinitions="2*,12,3*">
                 <!-- the user's rules, saved as they change -->
                 <Border Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
-                        <ScrollViewer>
-                            <ItemsControl Name="RulesList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:RuleRow">
-                                        <DockPanel Margin="0,4">
-                                            <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
-                                            <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
-                                            <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </DockPanel>
+                    <Grid RowDefinitions="Auto,*">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Rules" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource ContrastBrush}" />
+                            <ScrollViewer Name="RulesScroller">
+                                <ItemsControl Name="RulesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RuleRow">
+                                            <DockPanel Margin="0,4">
+                                                <Button DockPanel.Dock="Right" Content="Remove" Click="OnRemoveRule" />
+                                                <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                                <SelectableTextBlock Text="{Binding Pattern}" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+
+                        <!-- what a crawl of the map wrote, shown but not edited: a tick in the tree is what overrules one of these -->
+                        <DockPanel Grid.Row="1" Name="AutoSection" Margin="0,12,0,0">
+                            <TextBlock DockPanel.Dock="Top" Text="Rules (Auto)" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
+                            <TextBlock DockPanel.Dock="Top" Name="AutoSummary" Margin="0,2,0,8" Foreground="{DynamicResource ContrastSoftBrush}" />
+                            <TextBlock DockPanel.Dock="Bottom" Name="AutoMore" Margin="0,4,0,0" Foreground="{DynamicResource ContrastSoftBrush}" />
+                            <ScrollViewer>
+                                <ItemsControl Name="AutoRulesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RuleRow">
+                                            <DockPanel Margin="0,2">
+                                                <TextBlock Text="{Binding Kind}" Width="70" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                                <TextBlock Text="{Binding Pattern}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Grid>
                 </Border>
 
                 <!-- every folder and file under the addon, ticked when the upload takes it -->
@@ -60,6 +81,18 @@
                         <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold" Foreground="{DynamicResource ContrastBrush}" />
                         <TextBlock DockPanel.Dock="Top" Margin="0,4,0,8" TextWrapping="Wrap" Foreground="{DynamicResource ContrastSoftBrush}"
                                    Text="Every file in the addon, files ticked by default are packed by gameinfo.gi. A folder is ticked when all of its files are, and half ticked when some are. &#10;&#10;Untick a file or folder to keep it out, or tick one that is kept out to bring it in. Custom packing rules are saved in publish_rules.txt in the addon's content root, and the rules for every addon from the settings are counted in too." />
+                        <!-- keeping out what the map never reaches, the map to read it from picked beside it -->
+                        <Border DockPanel.Dock="Top" Margin="0,0,0,8" BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1" CornerRadius="5" Padding="8">
+                            <StackPanel>
+                                <DockPanel>
+                                    <ComboBox DockPanel.Dock="Right" Name="MapBox" MinWidth="170" Margin="8,0,0,0" SelectionChanged="OnMapChanged" />
+                                    <CheckBox Name="ExcludeUnused" Content="Exclude unused content" VerticalAlignment="Center" Click="OnExcludeUnusedChanged" />
+                                </DockPanel>
+                                <TextBlock Name="UnusedNotice" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
+                                           Text="The program searches for the assets used in the selected vpk file. Be careful using this feature, because it has limitations in specific scenarios like scripts: you must have clean path names to be parsed correctly." />
+                            </StackPanel>
+                        </Border>
+
                         <TextBox Name="SearchBox" DockPanel.Dock="Top" Margin="0,0,0,8" PlaceholderText="Search files" TextChanged="OnSearchChanged" />
                         <TreeView Name="FilesTree" Background="Transparent" BorderThickness="0">
                             <TreeView.ItemTemplate>

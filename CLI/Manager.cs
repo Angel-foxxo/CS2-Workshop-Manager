@@ -38,6 +38,7 @@ public static class Manager
         app.Add("contents", Commands.Contents);
         app.Add("files", Commands.Files);
         app.Add("rules", RulesCommands.List);
+        app.Add("rules unused", RulesCommands.Unused);
         app.Add("rules exclude", RulesCommands.Exclude);
         app.Add("rules include", RulesCommands.Include);
         app.Add("rules remove", RulesCommands.Remove);
@@ -727,6 +728,40 @@ public static class RulesCommands
             Console.WriteLine(global ? $"{rules.Rules.Count} rules in {AppSettings.FilePath}, applied to every addon" : $"{rules.Rules.Count} rules in {AddonRules.FileName}");
 
             return false;
+        });
+    }
+
+    /// <summary>
+    /// Lists the addon's files that no compiled map reaches, largest first, which are the ones worth keeping out of an upload.
+    /// </summary>
+    /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
+    /// <param name="map">The compiled map to start from, such as maps/de_dust2.vpk. The addon's own map when omitted.</param>
+    /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
+    public static int Unused(string addon, string? map = default, string? game = default)
+    {
+        return Manager.Run(() =>
+        {
+            var manager = Manager.OpenGame(game);
+            var addonPath = Manager.OpenAddon(manager, addon);
+            var result = AddonUsage.Detect(addonPath, map);
+
+            if (!result.HasCompiledMap)
+            {
+                Console.WriteLine(map == null
+                    ? $"{addon} has no compiled map under maps, so there is nothing to tell what it uses from what it does not."
+                    : $"{addon} has no compiled map \"{map}\".");
+
+                return;
+            }
+
+            var files = result.Unused.Select(path => new FileInfo(Path.Combine(addonPath, path))).OrderByDescending(file => file.Length).ToList();
+
+            foreach (var file in files)
+            {
+                Console.WriteLine($"{AddonContents.FormatSize(file.Length),12}  {AddonPackager.GetRelativePath(addonPath, file.FullName)}");
+            }
+
+            Console.WriteLine($"{files.Count} files, {AddonContents.FormatSize(files.Sum(file => file.Length))}, are reached from none of {string.Join(", ", result.Maps)}");
         });
     }
 
