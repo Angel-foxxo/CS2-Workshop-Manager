@@ -151,6 +151,13 @@ public static partial class AddonUsage
                     continue;
                 }
 
+                // a map's vmap_c carries no data of its own, only a list of everything the compile consumed, which includes the static
+                // props and smartprops it baked into the world. Following that list would mark the sources of baked geometry as in use
+                if (path.EndsWith(".vmap_c", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 package.ReadEntry(entry, out var data);
 
                 using var stream = new MemoryStream(data);
