@@ -258,6 +258,13 @@ public static partial class AddonUsage
 
                     Want((string)value);
                 }
+
+                // an entity can also be handed an asset by another entity firing at it, SetModel on a prop among them, which is
+                // kept as a connection rather than as one of its properties
+                foreach (var connection in entity.Connections ?? [])
+                {
+                    Want(connection.OverrideParam);
+                }
             }
         }
 
