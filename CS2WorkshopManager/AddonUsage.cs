@@ -19,7 +19,8 @@ namespace CS2WorkshopManager;
 public static partial class AddonUsage
 {
     /// <summary>
-    /// Folders the game loads by name rather than through any reference, so nothing in them is ever unused however the crawl goes.
+    /// Some references cannot be detected by following vpk references, but we assume the game uses them: panorama, resources and soundevents.
+    /// Those folders are hardcoded as used, and a rule of the user's own still wins over that.
     /// </summary>
     private static readonly string[] AlwaysUsedDirectories =
     [
