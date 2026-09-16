@@ -54,7 +54,7 @@ Exposes the full functionality that the base library and GUI expose, useful for 
 | `contents` | Shows what an addon would upload by asset type. |
 | `files` | Lists the files an addon would upload, or every file with `--all`. |
 | `rules` | Lists, adds and removes an addon's packing rules, or with `--global` the ones that apply to every addon. |
-| `rules unused` | Lists the files no compiled map of an addon references, largest first. |
+| `rules unused` | Lists the files no compiled map of an addon references, or keeps them out of the upload with `--apply`. |
 
 
 ### Example
@@ -104,7 +104,7 @@ The upload takes the files that `gameinfo.gi` lists under `VpkDirectories`, minu
 
 A rule matches everything whose path starts with its text, a folder ending in a slash. The first matching rule wins, and your rules are checked before gameinfo's. The Pack Filter window and the `rules` CLI command both write this file, and you can edit it by hand.
 
-Ticking "Exclude unused content" in the Pack Filter window reads the compiled map you pick and writes an exclude rule for every file it never reaches into an `unused_content_auto_rules` block of the same file, which also records the map it read from. These are checked last, so your own rules win over them, and ticking a file in the tree brings it back. Publishing makes the list again from the same map. A script's paths are only found where they are written out in full, so look the list over before publishing.
+Ticking "Exclude unused content" in the Pack Filter window, or running `rules unused --apply`, reads the compiled map you pick and writes an exclude rule for every file it never reaches into an `unused_content_auto_rules` block of the same file, which also records the map it read from. These are checked last, so your own rules win over them, and ticking a file in the tree brings it back. Uploading makes the list again from the same map, and `rules unused --clear` throws it away. A script's paths are only found where they are written out in full, so look the list over before publishing.
 
 Rules that should apply to every addon go in the app's settings file instead, `settings.txt` under `%AppData%\CS2WorkshopManager` on Windows or `~/.config/CS2WorkshopManager` on Linux, in a `publish_rules` block of the same shape. They are checked before the addon's own rules, so they win over them. The Settings window and `rules --global` write this file.
 

@@ -236,6 +236,9 @@ public static class Commands
 
             if (stage_only)
             {
+                // packed the same way a publish packs, the generated rules included and made again from their map first
+                manager.RefreshAutoRules(addon);
+
                 var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title ?? string.Empty, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon));
 
                 Console.WriteLine($"Staged: {stagingPath}");
@@ -732,18 +735,36 @@ public static class RulesCommands
     }
 
     /// <summary>
-    /// Lists the addon's files that no compiled map reaches, largest first, which are the ones worth keeping out of an upload.
+    /// Lists the addon's files that no compiled map reaches, largest first, and with --apply keeps them out of the upload from then on.
+    /// This is what "Exclude unused content" in the Pack Filter window does.
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
     /// <param name="map">The compiled map to start from, such as maps/de_dust2.vpk. The addon's own map when omitted.</param>
+    /// <param name="apply">Save what is found as the addon's generated rules, which every upload then leaves out until they are cleared.</param>
+    /// <param name="clear">Throw the generated rules away, so an upload takes everything again.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
-    public static int Unused(string addon, string? map = default, string? game = default)
+    public static int Unused(string addon, string? map = default, bool apply = false, bool clear = false, string? game = default)
     {
         return Manager.Run(() =>
         {
             var manager = Manager.OpenGame(game);
             var addonPath = Manager.OpenAddon(manager, addon);
-            var result = AddonUsage.Detect(addonPath, map);
+
+            if (clear)
+            {
+                if (apply)
+                {
+                    throw new ArgumentException("Give either --apply or --clear, not both.");
+                }
+
+                var cleared = manager.LoadAutoRules(addon).Rules.Count;
+                manager.SaveAutoRules(addon, new AddonRules());
+
+                Console.WriteLine($"Cleared {cleared} generated rules, {addon} uploads everything again.");
+                return;
+            }
+
+            var (rules, result) = manager.BuildAutoRules(addon, map);
 
             if (!result.HasCompiledMap)
             {
@@ -754,14 +775,27 @@ public static class RulesCommands
                 return;
             }
 
-            var files = result.Unused.Select(path => new FileInfo(Path.Combine(addonPath, path))).OrderByDescending(file => file.Length).ToList();
+            var total = 0L;
 
-            foreach (var file in files)
+            foreach (var rule in rules.Rules)
             {
-                Console.WriteLine($"{AddonContents.FormatSize(file.Length),12}  {AddonPackager.GetRelativePath(addonPath, file.FullName)}");
+                var length = new FileInfo(Path.Combine(addonPath, rule.Pattern)).Length;
+
+                Console.WriteLine($"{AddonContents.FormatSize(length),12}  {rule.Pattern}");
+                total += length;
             }
 
-            Console.WriteLine($"{files.Count} files, {AddonContents.FormatSize(files.Sum(file => file.Length))}, are reached from none of {string.Join(", ", result.Maps)}");
+            Console.WriteLine($"{rules.Rules.Count} files, {AddonContents.FormatSize(total)}, are reached from none of {string.Join(", ", result.Maps)}");
+
+            if (!apply)
+            {
+                Console.WriteLine("Add --apply to keep them out of the upload.");
+                return;
+            }
+
+            manager.SaveAutoRules(addon, rules);
+
+            Console.WriteLine($"Saved as generated rules in {AddonRules.FileName}, and made again from {rules.Map} on every upload.");
         });
     }
 

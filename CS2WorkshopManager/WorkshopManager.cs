@@ -257,14 +257,19 @@ public sealed class WorkshopManager
     /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
     /// </summary>
     /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
-    public AddonUsage.Result GenerateAutoRules(string addonName, string? mapName = null)
+    /// <summary>
+    /// What a crawl of <paramref name="mapName"/> would keep out of the upload, without saving any of it: an exclude rule for each file the map
+    /// does not reach that the upload would otherwise take, the biggest first. A file that is left out anyway gets no rule, one for it saying nothing.
+    /// </summary>
+    /// <returns>The rules that would be written, and what the crawl found, whose unused files are the ones they cover.</returns>
+    public (AddonRules Rules, AddonUsage.Result Found) BuildAutoRules(string addonName, string? mapName = null)
     {
         var addonPath = Path.Combine(AddonsRoot, addonName);
         var found = AddonUsage.Detect(addonPath, mapName);
 
         if (!found.HasCompiledMap)
         {
-            return found;
+            return (new AddonRules(), found);
         }
 
         var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, LoadUserPackingRules(addonName))
@@ -279,9 +284,36 @@ public sealed class WorkshopManager
         var auto = new AddonRules { Map = found.Maps[0] };
         auto.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
 
-        SaveAutoRules(addonName, auto);
+        return (auto, found with { Unused = written });
+    }
 
-        return found with { Unused = written };
+    /// <summary>
+    /// Crawls <paramref name="mapName"/>, or the addon's own map when that is null, and saves what it does not reach as the addon's generated rules.
+    /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
+    /// </summary>
+    /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
+    public AddonUsage.Result GenerateAutoRules(string addonName, string? mapName = null)
+    {
+        var (auto, found) = BuildAutoRules(addonName, mapName);
+
+        if (found.HasCompiledMap)
+        {
+            SaveAutoRules(addonName, auto);
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// Makes an addon's generated rules again from the map they were made from, for an addon that carries any, so that what is about to be
+    /// packed is judged against the map as it now stands. An addon with no generated rules is left alone.
+    /// </summary>
+    public void RefreshAutoRules(string addonName)
+    {
+        if (LoadAutoRules(addonName) is { Rules.Count: > 0 } generated)
+        {
+            GenerateAutoRules(addonName, generated.Map);
+        }
     }
 
     /// <summary>
@@ -708,10 +740,10 @@ public sealed class WorkshopManager
 
         var publishTime = DateTimeOffset.UtcNow;
 
-        // a generated list is only as true as the map it was read from, so an addon using one has it made again from that same map before packing
-        if (options.AddonName != null && LoadAutoRules(options.AddonName) is { Rules.Count: > 0 } generated)
+        // a generated list is only as true as the map it was read from, so an addon using one has it made again before packing
+        if (options.AddonName != null)
         {
-            GenerateAutoRules(options.AddonName, generated.Map);
+            RefreshAutoRules(options.AddonName);
         }
 
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
