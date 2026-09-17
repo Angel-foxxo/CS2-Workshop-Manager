@@ -20,14 +20,16 @@ public static partial class AddonUsage
 {
     /// <summary>
     /// Some references cannot be detected by following vpk references, but we assume the game uses them.
-    /// Those folders are hardcoded as used, but a user rule still wins of this.
+    /// Those folders and files are hardcoded as used, but a user rule still wins of this.
     /// </summary>
-    private static readonly string[] AlwaysUsedDirectories =
+    private static readonly string[] AlwaysUsedPaths =
     [
         "panorama/",
         "resource/",
         "scripts/",
         "soundevents/",
+        "cfg/",
+        "addoninfo.txt",
     ];
 
     /// <summary>An entity naming another map to load, the 3d skybox among them, which is packed as a vpk of its own.</summary>
@@ -167,12 +169,16 @@ public static partial class AddonUsage
             Follow();
         }
 
-        /// <summary>Marks what is left as used: the folders the game loads by name, whatever the crawl reached.</summary>
+        /// <summary>Marks what is left as used: the folders and files the game loads by name, whatever the crawl reached.</summary>
         public void Finish()
         {
-            foreach (var path in files.Keys.Where(path => AlwaysUsedDirectories.Any(directory => path.StartsWith(directory, StringComparison.OrdinalIgnoreCase))))
+            // these are files of the addon already, so they are marked directly: Want passes over a name without a slash, such as addoninfo.txt in the root
+            foreach (var path in files.Keys.Where(path => AlwaysUsedPaths.Any(used => path.StartsWith(used, StringComparison.OrdinalIgnoreCase))))
             {
-                Want(path);
+                if (Used.Add(path) && path.EndsWith("_c", StringComparison.Ordinal))
+                {
+                    pending.Enqueue(path);
+                }
             }
 
             Follow();
