@@ -201,6 +201,9 @@ public sealed class WorkshopManager
 
     private static SteamClient? steam;
 
+    /// <summary>The crawls made so far by addon and map, each with the time its map was built.</summary>
+    private readonly Dictionary<string, (DateTime Built, AddonUsage.Result Found)> crawls = new(StringComparer.OrdinalIgnoreCase);
+
     private static SteamClient Steam
     {
         get
@@ -225,11 +228,16 @@ public sealed class WorkshopManager
     }
 
     /// <summary>
-    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win, then the addon's own.
+    /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win,
+    /// then the addon's own, and last, when the addon asks for it, an exclude rule for each file its map does not reach, which every rule the user made wins over.
     /// </summary>
-    public AddonRules LoadPackingRules(string addonName)
+    /// <param name="recrawl">Read the map again even when it has not been rebuilt, as a publish does, since an asset it reaches can change without it.</param>
+    public AddonRules LoadPackingRules(string addonName, bool recrawl = false)
     {
-        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
+        var own = LoadRules(addonName);
+        var user = AppSettings.Load().GlobalRules.Then(own);
+
+        return own.ExcludeUnused == null ? user : user.Then(BuildUnusedRules(addonName, own.ExcludeUnused, recrawl).Rules);
     }
 
     public void SaveRules(string addonName, AddonRules rules)
@@ -237,6 +245,70 @@ public sealed class WorkshopManager
         ArgumentNullException.ThrowIfNull(rules);
 
         rules.Save(AddonRules.GetPath(ContentRoot, addonName));
+    }
+
+    /// <summary>
+    /// An exclude rule for each file a crawl of <paramref name="mapName"/> does not reach that the upload would otherwise take, the biggest first.
+    /// A file that is left out anyway gets no rule, one for it saying nothing. None for an addon without that compiled map, there being no way to tell what it uses.
+    /// Nothing is saved: a crawl is kept for as long as the map is not rebuilt, so working these out again for the same map is quick.
+    /// </summary>
+    /// <param name="mapName">The map to crawl, relative to the addon, or null for the addon's own.</param>
+    /// <param name="recrawl">Read the map again even when it has not been rebuilt.</param>
+    /// <returns>The rules, and what the crawl found, whose unused files are the ones they cover.</returns>
+    public (AddonRules Rules, AddonUsage.Result Found) BuildUnusedRules(string addonName, string? mapName = null, bool recrawl = false)
+    {
+        var addonPath = Path.Combine(AddonsRoot, addonName);
+        var found = Crawl(addonPath, mapName, recrawl);
+
+        if (!found.HasCompiledMap)
+        {
+            return (new AddonRules(), found);
+        }
+
+        var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, AppSettings.Load().GlobalRules.Then(LoadRules(addonName)))
+            .ToDictionary(file => AddonPackager.GetRelativePath(addonPath, file.FullName), file => file.Length, StringComparer.OrdinalIgnoreCase);
+
+        var written = found.Unused
+            .Where(packed.ContainsKey)
+            .OrderByDescending(path => packed[path])
+            .ToList();
+
+        var rules = new AddonRules();
+        rules.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
+
+        return (rules, found with { Unused = written });
+    }
+
+    /// <summary><see cref="AddonUsage.Detect"/>, or the last crawl of the same map when it has not been built since and <paramref name="recrawl"/> is not asked for.</summary>
+    private AddonUsage.Result Crawl(string addonPath, string? mapName, bool recrawl)
+    {
+        var map = mapName == null ? AddonUsage.FindMaps(addonPath).FirstOrDefault() : AddonRules.Normalize(mapName);
+        var mapPath = map == null ? null : Path.Combine(addonPath, map);
+
+        if (mapPath == null || !File.Exists(mapPath))
+        {
+            return AddonUsage.Detect(addonPath, mapName);
+        }
+
+        var key = $"{Path.GetFullPath(addonPath)}|{map}";
+        var built = File.GetLastWriteTimeUtc(mapPath);
+
+        lock (crawls)
+        {
+            if (!recrawl && crawls.TryGetValue(key, out var crawl) && crawl.Built == built)
+            {
+                return crawl.Found;
+            }
+        }
+
+        var found = AddonUsage.Detect(addonPath, map);
+
+        lock (crawls)
+        {
+            crawls[key] = (built, found);
+        }
+
+        return found;
     }
 
     /// <summary>
@@ -664,7 +736,7 @@ public sealed class WorkshopManager
         var publishTime = DateTimeOffset.UtcNow;
 
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName) : options.Rules.Then(LoadPackingRules(options.AddonName)));
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName, recrawl: true) : options.Rules.Then(LoadPackingRules(options.AddonName, recrawl: true)));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);

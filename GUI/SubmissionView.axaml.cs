@@ -333,8 +333,8 @@ public partial class SubmissionView : UserControl
 
         try
         {
-            var rules = manager.LoadPackingRules(addon);
-            var scanned = await Task.Run(() => AddonPackager.GetContents(addonPath, gameInfoPath, rules));
+            // off the window's thread, an addon that keeps unused content out having its map crawled to work out its rules
+            var scanned = await Task.Run(() => AddonPackager.GetContents(addonPath, gameInfoPath, manager.LoadPackingRules(addon)));
 
             // the selection moved on while this folder was scanned
             if (!Equals(AddonBox.SelectedItem, addon))

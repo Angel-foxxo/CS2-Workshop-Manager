@@ -6,6 +6,7 @@ namespace CS2WorkshopManager;
 /// <summary>
 /// Custom file packing rules, the same way VpkDirectories works, kept as publish_rules.txt in the addon's content folder and applied ahead of gameinfo's VpkDirectories.
 /// A rule is a path prefix to include or exclude, matched the way gameinfo's entries are: the first rule that fits a path decides.
+/// The file can also name a compiled map whose unused content is kept out, see <see cref="ExcludeUnused"/>. The rules that come from it are not stored, they are worked out whenever the addon is packed.
 /// </summary>
 public sealed class AddonRules
 {
@@ -13,11 +14,18 @@ public sealed class AddonRules
 
     private const string ExcludeKey = "exclude";
     private const string IncludeKey = "include";
+    private const string ExcludeUnusedKey = "exclude_unused";
 
     /// <summary>A path prefix to keep out of, or in, the upload.</summary>
     public readonly record struct Rule(bool Exclude, string Pattern);
 
     public List<Rule> Rules { get; } = [];
+
+    /// <summary>
+    /// The compiled map, relative to the addon, whose unused content is kept out of the upload, or null to take it all.
+    /// See <see cref="WorkshopManager.BuildUnusedRules"/>.
+    /// </summary>
+    public string? ExcludeUnused { get; set; }
 
     public static string GetPath(string contentRoot, string addonName)
     {
@@ -54,6 +62,12 @@ public sealed class AddonRules
     {
         foreach (var child in block.Children)
         {
+            if (child.Key.Equals(ExcludeUnusedKey, StringComparison.OrdinalIgnoreCase))
+            {
+                ExcludeUnused = Normalize((string)child.Value);
+                continue;
+            }
+
             var exclude = child.Key.Equals(ExcludeKey, StringComparison.OrdinalIgnoreCase);
 
             if (exclude || child.Key.Equals(IncludeKey, StringComparison.OrdinalIgnoreCase))
@@ -67,6 +81,11 @@ public sealed class AddonRules
     internal KVObject Write()
     {
         var data = KVObject.ListCollection();
+
+        if (ExcludeUnused != null)
+        {
+            data.Add(ExcludeUnusedKey, ExcludeUnused);
+        }
 
         foreach (var rule in Rules)
         {
