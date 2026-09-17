@@ -236,10 +236,7 @@ public static class Commands
 
             if (stage_only)
             {
-                // packed the same way a publish packs, the generated rules included and made again from their map first
-                manager.RefreshAutoRules(addon);
-
-                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title ?? string.Empty, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon));
+                var stagingPath = AddonPackager.Stage(manager.AddonsRoot, addon, manager.GameInfoPath, id!.Value, title ?? string.Empty, DateTimeOffset.UtcNow, manager.LoadPackingRules(addon, recrawl: true));
 
                 Console.WriteLine($"Staged: {stagingPath}");
 
@@ -730,6 +727,11 @@ public static class RulesCommands
 
             Console.WriteLine(global ? $"{rules.Rules.Count} rules in {AppSettings.FilePath}, applied to every addon" : $"{rules.Rules.Count} rules in {AddonRules.FileName}");
 
+            if (rules.ExcludeUnused != null)
+            {
+                Console.WriteLine($"Files {rules.ExcludeUnused} does not reach are kept out after these rules");
+            }
+
             return false;
         });
     }
@@ -740,8 +742,8 @@ public static class RulesCommands
     /// </summary>
     /// <param name="addon">-a, Name of the addon folder under game/csgo_addons.</param>
     /// <param name="map">The compiled map to start from, such as maps/de_dust2.vpk. The addon's own map when omitted.</param>
-    /// <param name="apply">Save what is found as the addon's generated rules, which every upload then leaves out until they are cleared.</param>
-    /// <param name="clear">Throw the generated rules away, so an upload takes everything again.</param>
+    /// <param name="apply">Keep the files the map does not reach out of every upload, worked out again from the map each time, until cleared.</param>
+    /// <param name="clear">Stop keeping unused files out, so an upload takes everything again.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
     public static int Unused(string addon, string? map = default, bool apply = false, bool clear = false, string? game = default)
     {
@@ -749,6 +751,7 @@ public static class RulesCommands
         {
             var manager = Manager.OpenGame(game);
             var addonPath = Manager.OpenAddon(manager, addon);
+            var own = manager.LoadRules(addon);
 
             if (clear)
             {
@@ -757,14 +760,14 @@ public static class RulesCommands
                     throw new ArgumentException("Give either --apply or --clear, not both.");
                 }
 
-                var cleared = manager.LoadAutoRules(addon).Rules.Count;
-                manager.SaveAutoRules(addon, new AddonRules());
+                own.ExcludeUnused = null;
+                manager.SaveRules(addon, own);
 
-                Console.WriteLine($"Cleared {cleared} generated rules, {addon} uploads everything again.");
+                Console.WriteLine($"{addon} uploads its unused content again.");
                 return;
             }
 
-            var (rules, result) = manager.BuildAutoRules(addon, map);
+            var (rules, result) = manager.BuildUnusedRules(addon, map);
 
             if (!result.HasCompiledMap)
             {
@@ -793,9 +796,11 @@ public static class RulesCommands
                 return;
             }
 
-            manager.SaveAutoRules(addon, rules);
+            // a crawl that found a map always lists it first, that being the one it started from
+            own.ExcludeUnused = result.Maps[0];
+            manager.SaveRules(addon, own);
 
-            Console.WriteLine($"Saved as generated rules in {AddonRules.FileName}, and made again from {rules.Map} on every upload.");
+            Console.WriteLine($"Saved in {AddonRules.FileName}, every upload keeps out what {result.Maps[0]} does not reach at the time.");
         });
     }
 

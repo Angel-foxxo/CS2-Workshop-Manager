@@ -112,7 +112,6 @@ public partial class AddonFilesWindow : Window
     private const double MaxUserRulesHeight = 220;
 
     private AddonRules rules = new();
-    private AddonRules autoRules = new();
     private string? addon;
 
     /// <summary>Every file under the addon in path order, the leaves of the trees.</summary>
@@ -172,8 +171,7 @@ public partial class AddonFilesWindow : Window
             Contents.Contents = null;
             RulesList.ItemsSource = null;
             FilesTree.ItemsSource = null;
-            autoRules = new AddonRules();
-            ShowAutoRules(0);
+            ShowAutoRules(new AddonRules(), 0);
             return;
         }
 
@@ -193,29 +191,22 @@ public partial class AddonFilesWindow : Window
         try
         {
             rules = manager.LoadRules(name);
-            autoRules = manager.LoadAutoRules(name);
             ShowMaps(addonPath, switched ? null : SelectedMap);
 
-            // what the addon is packed by, the same way a publish works it out, and what it would pack had nothing been generated
-            var current = manager.LoadPackingRules(name);
-            var withoutGenerated = autoRules.Rules.Count == 0 ? null : manager.LoadUserPackingRules(name);
-            var (packed, all, generatedSize) = await Task.Run(() =>
+            var own = rules;
+
+            // what the addon is packed by, the same way a publish works it out. A map to keep unused content out by is crawled here, and again only once it is rebuilt
+            var (packed, all, autoRules) = await Task.Run(() =>
             {
-                var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, current);
+                var unused = own.ExcludeUnused == null ? new AddonRules() : manager.BuildUnusedRules(name, own.ExcludeUnused).Rules;
+                var packedFiles = AddonPackager.CollectFiles(addonPath, gameInfoPath, manager.LoadPackingRules(name));
                 var packedPaths = packedFiles.Select(file => file.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var every = AddonPackager.ListFiles(addonPath)
                     .Select(file => (Path: AddonPackager.GetRelativePath(addonPath, file.FullName), file.Length, Packed: packedPaths.Contains(file.FullName)))
                     .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // what the generated rules took out is what the user's own rules would have packed and these do not
-                var taken = withoutGenerated == null
-                    ? 0
-                    : AddonPackager.CollectFiles(addonPath, gameInfoPath, withoutGenerated)
-                        .Where(file => !packedPaths.Contains(file.FullName))
-                        .Sum(file => file.Length);
-
-                return (packedFiles, every, taken);
+                return (packedFiles, every, unused);
             });
 
             // the selection moved on while this addon was scanned
@@ -226,7 +217,10 @@ public partial class AddonFilesWindow : Window
 
             Contents.Contents = AddonContents.FromFiles(packed);
             RulesList.ItemsSource = rules.Rules.Select(rule => new RuleRow(rule)).ToList();
-            ShowAutoRules(generatedSize);
+
+            // a rule is only made for a file the user's rules pack, so what they take out is exactly the files they name
+            var unusedPaths = autoRules.Rules.Select(rule => rule.Pattern).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            ShowAutoRules(autoRules, all.Where(entry => unusedPaths.Contains(entry.Path)).Sum(entry => entry.Length));
 
             // the same files as before only change their ticks and sizes, which the game rewrites as it runs, so the tree keeps its nodes, its scroll and what is expanded
             if (files.Count == all.Count && files.Zip(all).All(pair => pair.First.RelativePath == pair.Second.Path))
@@ -277,14 +271,14 @@ public partial class AddonFilesWindow : Window
 
     /// <summary>
     /// Fills the map box with the addon's compiled maps and turns the whole thing off when the addon has none. What is picked is what
-    /// <paramref name="keep"/> asks for, then the map a standing list was made from, and otherwise the one carrying the addon's name.
+    /// <paramref name="keep"/> asks for, then the map the addon keeps unused content out by, and otherwise the one carrying the addon's name.
     /// </summary>
     /// <param name="keep">The map to stay on, for a rescan of the same addon, or null when the addon has changed under it.</param>
     private void ShowMaps(string addonPath, string? keep)
     {
         var maps = AddonUsage.FindMaps(addonPath);
 
-        var picked = new[] { keep, autoRules.Map }
+        var picked = new[] { keep, rules.ExcludeUnused }
             .FirstOrDefault(map => map != null && maps.Contains(map, StringComparer.OrdinalIgnoreCase)) ?? maps.FirstOrDefault();
 
         showingMaps = true;
@@ -294,7 +288,7 @@ public partial class AddonFilesWindow : Window
 
         MapBox.IsEnabled = maps.Count > 0;
         ExcludeUnused.IsEnabled = maps.Count > 0;
-        ExcludeUnused.IsChecked = autoRules.Rules.Count > 0;
+        ExcludeUnused.IsChecked = rules.ExcludeUnused != null;
 
         if (maps.Count == 0)
         {
@@ -307,7 +301,7 @@ public partial class AddonFilesWindow : Window
 
     private async void OnMapChanged(object? sender, SelectionChangedEventArgs e)
     {
-        // a different map only matters once there is a list to make again
+        // a different map only matters when unused content is being kept out
         if (!showingMaps && ExcludeUnused.IsChecked == true)
         {
             await GenerateAsync();
@@ -320,8 +314,8 @@ public partial class AddonFilesWindow : Window
     }
 
     /// <summary>
-    /// Crawls the picked map and saves what it does not reach, or throws the list away when the box is unticked, then shows the addon as it now packs.
-    /// The crawl reads every resource the map reaches and takes a while, so it is done off the window's thread with the button out of reach.
+    /// Saves the picked map as the one to keep unused content out by, or clears it when the box is unticked, then shows the addon as it now packs.
+    /// The crawl that follows reads every resource the map reaches and takes a while, so the box and the map are out of reach until it is done.
     /// </summary>
     private async Task GenerateAsync()
     {
@@ -330,46 +324,20 @@ public partial class AddonFilesWindow : Window
             return;
         }
 
-        var name = addon;
-        var map = SelectedMap;
-        var wanted = ExcludeUnused.IsChecked == true;
+        var map = ExcludeUnused.IsChecked == true ? SelectedMap : null;
 
-        changing = true;
         ExcludeUnused.IsEnabled = false;
         MapBox.IsEnabled = false;
-        Status.Text = wanted ? $"Reading {map}..." : "Clearing the generated rules...";
+        Status.Text = map == null ? "Taking unused content back in..." : $"Reading {map}...";
 
-        try
-        {
-            if (wanted)
-            {
-                await Task.Run(() => manager.GenerateAutoRules(name, map));
-            }
-            else
-            {
-                manager.SaveAutoRules(name, new AddonRules());
-            }
-
-            changing = false;
-            await ReloadAsync();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Status.Text = exception.Message;
-        }
-        finally
-        {
-            changing = false;
-            MapBox.IsEnabled = SelectedMap != null;
-            ExcludeUnused.IsEnabled = MapBox.IsEnabled;
-        }
+        await ChangeRulesAsync(changed => changed.ExcludeUnused = map);
     }
 
     /// <summary>
-    /// Shows the generated rules and what they take out of the upload, or nothing at all when none have been generated for the addon.
-    /// Only the first of them are listed, since a crawl writes a rule per file and there can be thousands.
+    /// Shows the rules made from the map and what they take out of the upload, or nothing at all when the addon does not keep unused content out.
+    /// Only the first of them are listed, since a crawl makes a rule per file and there can be thousands.
     /// </summary>
-    private void ShowAutoRules(long takenSize)
+    private void ShowAutoRules(AddonRules autoRules, long takenSize)
     {
         AutoSection.IsVisible = autoRules.Rules.Count > 0;
 

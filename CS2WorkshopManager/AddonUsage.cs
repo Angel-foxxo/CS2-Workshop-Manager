@@ -19,8 +19,8 @@ namespace CS2WorkshopManager;
 public static partial class AddonUsage
 {
     /// <summary>
-    /// Some references cannot be detected by following vpk references, but we assume the game uses them: panorama, resources and soundevents.
-    /// Those folders are hardcoded as used, and a rule of the user's own still wins over that.
+    /// Some references cannot be detected by following vpk references, but we assume the game uses them.
+    /// Those folders are hardcoded as used, but a user rule still wins of this.
     /// </summary>
     private static readonly string[] AlwaysUsedDirectories =
     [

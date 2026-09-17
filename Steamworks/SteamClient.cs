@@ -108,7 +108,7 @@ public sealed class SteamClient : IDisposable
 
             if (user == 0)
             {
-                throw new SteamUnavailableException("Nobody is logged into Steam. Log in, then try again.");
+                throw new SteamUnavailableException("No account logged into Steam. Log in, then try again.");
             }
 
             User = new SteamUser(GetInterface(SteamUser.InterfaceVersion));

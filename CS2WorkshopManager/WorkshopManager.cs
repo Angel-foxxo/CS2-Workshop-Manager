@@ -195,6 +195,9 @@ public sealed class WorkshopManager
 
     private static SteamClient? steam;
 
+    /// <summary>The crawls made so far by addon and map, each with the time its map was built.</summary>
+    private readonly Dictionary<string, (DateTime Built, AddonUsage.Result Found)> crawls = new(StringComparer.OrdinalIgnoreCase);
+
     private static SteamClient Steam
     {
         get
@@ -220,59 +223,43 @@ public sealed class WorkshopManager
 
     /// <summary>
     /// The rules an upload of <paramref name="addonName"/> is packed by: the ones in <see cref="AppSettings"/> that apply to every addon first, so they win,
-    /// then the addon's own, and last the generated ones, which every rule the user made therefore wins over.
+    /// then the addon's own, and last, when the addon asks for it, an exclude rule for each file its map does not reach, which every rule the user made wins over.
     /// </summary>
-    public AddonRules LoadPackingRules(string addonName)
+    /// <param name="recrawl">Read the map again even when it has not been rebuilt, as a publish does, since an asset it reaches can change without it.</param>
+    public AddonRules LoadPackingRules(string addonName, bool recrawl = false)
     {
-        return LoadUserPackingRules(addonName).Then(LoadAutoRules(addonName));
-    }
+        var own = LoadRules(addonName);
+        var user = AppSettings.Load().GlobalRules.Then(own);
 
-    /// <summary>
-    /// The same without the generated rules, which is what an upload would pack if nothing had been generated, and so what a generated list is measured against.
-    /// </summary>
-    public AddonRules LoadUserPackingRules(string addonName)
-    {
-        return AppSettings.Load().GlobalRules.Then(LoadRules(addonName));
-    }
-
-    /// <summary>The rules a crawl of <paramref name="addonName"/>'s map generated, none when nothing has been generated for it.</summary>
-    public AddonRules LoadAutoRules(string addonName)
-    {
-        return AddonRules.LoadAuto(AddonRules.GetPath(ContentRoot, addonName));
+        return own.ExcludeUnused == null ? user : user.Then(BuildUnusedRules(addonName, own.ExcludeUnused, recrawl).Rules);
     }
 
     public void SaveRules(string addonName, AddonRules rules)
     {
-        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), rules, LoadAutoRules(addonName));
-    }
+        ArgumentNullException.ThrowIfNull(rules);
 
-    public void SaveAutoRules(string addonName, AddonRules auto)
-    {
-        AddonRules.Save(AddonRules.GetPath(ContentRoot, addonName), LoadRules(addonName), auto);
+        rules.Save(AddonRules.GetPath(ContentRoot, addonName));
     }
 
     /// <summary>
-    /// Crawls <paramref name="mapName"/>, or the addon's own map when that is null, and saves what it does not reach as the addon's generated rules.
-    /// A rule is only written for a file the upload would otherwise take, one for a file that is left out anyway saying nothing, and the biggest come first.
-    /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
+    /// An exclude rule for each file a crawl of <paramref name="mapName"/> does not reach that the upload would otherwise take, the biggest first.
+    /// A file that is left out anyway gets no rule, one for it saying nothing. None for an addon without that compiled map, there being no way to tell what it uses.
+    /// Nothing is saved: a crawl is kept for as long as the map is not rebuilt, so working these out again for the same map is quick.
     /// </summary>
-    /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
-    /// <summary>
-    /// What a crawl of <paramref name="mapName"/> would keep out of the upload, without saving any of it: an exclude rule for each file the map
-    /// does not reach that the upload would otherwise take, the biggest first. A file that is left out anyway gets no rule, one for it saying nothing.
-    /// </summary>
-    /// <returns>The rules that would be written, and what the crawl found, whose unused files are the ones they cover.</returns>
-    public (AddonRules Rules, AddonUsage.Result Found) BuildAutoRules(string addonName, string? mapName = null)
+    /// <param name="mapName">The map to crawl, relative to the addon, or null for the addon's own.</param>
+    /// <param name="recrawl">Read the map again even when it has not been rebuilt.</param>
+    /// <returns>The rules, and what the crawl found, whose unused files are the ones they cover.</returns>
+    public (AddonRules Rules, AddonUsage.Result Found) BuildUnusedRules(string addonName, string? mapName = null, bool recrawl = false)
     {
         var addonPath = Path.Combine(AddonsRoot, addonName);
-        var found = AddonUsage.Detect(addonPath, mapName);
+        var found = Crawl(addonPath, mapName, recrawl);
 
         if (!found.HasCompiledMap)
         {
             return (new AddonRules(), found);
         }
 
-        var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, LoadUserPackingRules(addonName))
+        var packed = AddonPackager.CollectFiles(addonPath, GameInfoPath, AppSettings.Load().GlobalRules.Then(LoadRules(addonName)))
             .ToDictionary(file => AddonPackager.GetRelativePath(addonPath, file.FullName), file => file.Length, StringComparer.OrdinalIgnoreCase);
 
         var written = found.Unused
@@ -280,40 +267,42 @@ public sealed class WorkshopManager
             .OrderByDescending(path => packed[path])
             .ToList();
 
-        // a crawl that found a map always lists it first, that being the one it started from
-        var auto = new AddonRules { Map = found.Maps[0] };
-        auto.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
+        var rules = new AddonRules();
+        rules.Rules.AddRange(written.Select(path => new AddonRules.Rule(true, path)));
 
-        return (auto, found with { Unused = written });
+        return (rules, found with { Unused = written });
     }
 
-    /// <summary>
-    /// Crawls <paramref name="mapName"/>, or the addon's own map when that is null, and saves what it does not reach as the addon's generated rules.
-    /// Nothing is saved for an addon without a compiled map, there being no way to tell what it uses.
-    /// </summary>
-    /// <returns>What the crawl found, its unused files being the ones a rule was written for.</returns>
-    public AddonUsage.Result GenerateAutoRules(string addonName, string? mapName = null)
+    /// <summary><see cref="AddonUsage.Detect"/>, or the last crawl of the same map when it has not been built since and <paramref name="recrawl"/> is not asked for.</summary>
+    private AddonUsage.Result Crawl(string addonPath, string? mapName, bool recrawl)
     {
-        var (auto, found) = BuildAutoRules(addonName, mapName);
+        var map = mapName == null ? AddonUsage.FindMaps(addonPath).FirstOrDefault() : AddonRules.Normalize(mapName);
+        var mapPath = map == null ? null : Path.Combine(addonPath, map);
 
-        if (found.HasCompiledMap)
+        if (mapPath == null || !File.Exists(mapPath))
         {
-            SaveAutoRules(addonName, auto);
+            return AddonUsage.Detect(addonPath, mapName);
+        }
+
+        var key = $"{Path.GetFullPath(addonPath)}|{map}";
+        var built = File.GetLastWriteTimeUtc(mapPath);
+
+        lock (crawls)
+        {
+            if (!recrawl && crawls.TryGetValue(key, out var crawl) && crawl.Built == built)
+            {
+                return crawl.Found;
+            }
+        }
+
+        var found = AddonUsage.Detect(addonPath, map);
+
+        lock (crawls)
+        {
+            crawls[key] = (built, found);
         }
 
         return found;
-    }
-
-    /// <summary>
-    /// Makes an addon's generated rules again from the map they were made from, for an addon that carries any, so that what is about to be
-    /// packed is judged against the map as it now stands. An addon with no generated rules is left alone.
-    /// </summary>
-    public void RefreshAutoRules(string addonName)
-    {
-        if (LoadAutoRules(addonName) is { Rules.Count: > 0 } generated)
-        {
-            GenerateAutoRules(addonName, generated.Map);
-        }
     }
 
     /// <summary>
@@ -740,14 +729,8 @@ public sealed class WorkshopManager
 
         var publishTime = DateTimeOffset.UtcNow;
 
-        // a generated list is only as true as the map it was read from, so an addon using one has it made again before packing
-        if (options.AddonName != null)
-        {
-            RefreshAutoRules(options.AddonName);
-        }
-
         // only the info changes when there is no addon to upload. The staged publish data records the title given, or none when the item keeps its own
-        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName) : options.Rules.Then(LoadPackingRules(options.AddonName)));
+        var contentPath = options.AddonName == null ? null : AddonPackager.Stage(AddonsRoot, options.AddonName, GameInfoPath, publishedFileId, options.Title ?? string.Empty, publishTime, options.Rules == null ? LoadPackingRules(options.AddonName, recrawl: true) : options.Rules.Then(LoadPackingRules(options.AddonName, recrawl: true)));
 
         var ugc = Steam.UGC;
         var handle = ugc.StartItemUpdate(AppId, publishedFileId);
