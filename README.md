@@ -1,6 +1,6 @@
 # CS2 Workshop Manager
 
-External Counter-Strike 2 Workshop Manager. 
+External Counter-Strike 2 Workshop Manager.
 
 Packs a compiled addon the same way Valve's tool does and publishes it to the Steam Workshop, then lets you manage everything you have published.
 
@@ -22,6 +22,7 @@ Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this too
 - Added a new gallery editor, screenshots and YouTube videos under the thumbnail can be added and removed without leaving the app.
 - Added support for more thumbnail file types as well as resolutions.
 - Added support for GIF thumbnails.
+- Contributors can now re-upload the submissions.
 - Added support for custom used defined tags.
 - Added new tool "Pack Filter" allowing you to define custom file packing rules.
 - Added "Exclude unused content", which reads a compiled map and keeps whatever it never references out of the upload.
