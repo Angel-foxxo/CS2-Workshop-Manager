@@ -110,6 +110,9 @@ public partial class SubmissionView : UserControl
     private GalleryEntry? draggedEntry;
     private Point grabOffset;
 
+    /// <summary>The required items as shown: the item's that were not removed, and the ones added here.</summary>
+    private readonly ObservableCollection<RequiredItem> requiredItems = [];
+
     private TaskCompletionSource<PublishedSubmission?>? finished;
 
     public SubmissionView()
@@ -132,6 +135,9 @@ public partial class SubmissionView : UserControl
 
         Gallery.ItemsSource = gallery;
         gallery.CollectionChanged += (_, _) => GalleryHint.IsVisible = gallery.Count == 0;
+
+        RequiredItems.ItemsSource = requiredItems;
+        requiredItems.CollectionChanged += (_, _) => RequiredItemsHint.IsVisible = requiredItems.Count == 0;
 
         // mouse 4 goes back wherever it is pressed in the view, seen before any control takes the press
         AddHandler(PointerPressedEvent, OnViewPressed, RoutingStrategies.Tunnel);
@@ -202,6 +208,13 @@ public partial class SubmissionView : UserControl
                 gallery.Add(entry);
                 _ = LoadGalleryImageAsync(entry, preview.ImageUrl);
             }
+        }
+
+        requiredItems.Clear();
+
+        foreach (var required in item?.RequiredItems ?? [])
+        {
+            requiredItems.Add(required);
         }
 
         if (uploads)
@@ -661,6 +674,74 @@ public partial class SubmissionView : UserControl
         }
     }
 
+    /// <summary>Asks for a workshop item and lists it as required, after Steam has given its title, so one that is not there is refused here.</summary>
+    private async void OnAddRequiredItem(object? sender, RoutedEventArgs e)
+    {
+        var text = await MessageDialog.AskTextAsync(OwnerWindow, MessageKind.Info, "Add Required Item", "Enter the workshop link or ID of the item this one requires.", "Add", "https://steamcommunity.com/sharedfiles/filedetails/?id=...");
+
+        if (text == null)
+        {
+            return;
+        }
+
+        if (WorkshopManager.ParseWorkshopItemId(text) is not ulong id)
+        {
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Add Required Item", "That is not a workshop link or ID.");
+            return;
+        }
+
+        if (id == item?.PublishedFileId)
+        {
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Add Required Item", "An item can not require itself.");
+            return;
+        }
+
+        if (requiredItems.Any(existing => existing.PublishedFileId == id))
+        {
+            return;
+        }
+
+        try
+        {
+            var found = (await WorkshopManager.FindItemsAsync([id]))[0];
+
+            if (found.Title == null)
+            {
+                await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Add Required Item", $"Workshop item {id} does not exist or is not visible to the logged in account.");
+                return;
+            }
+
+            requiredItems.Add(found);
+        }
+        catch (SteamUnavailableException exception)
+        {
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Steam Not Running", exception.Message);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException)
+        {
+            await MessageDialog.ShowAsync(OwnerWindow, MessageKind.Warning, "Add Required Item", exception.Message);
+        }
+    }
+
+    /// <summary>Takes an item off the required ones: one the item has is removed on submit, one added here is simply not added.</summary>
+    private void OnRemoveRequiredItem(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is RequiredItem required)
+        {
+            requiredItems.Remove(required);
+        }
+    }
+
+    /// <summary>
+    /// The required items as shown, for publishing, or null when they are the item's untouched, which the info edit's checks rely on.
+    /// </summary>
+    private List<ulong>? BuildRequiredItems()
+    {
+        var wanted = requiredItems.Select(required => required.PublishedFileId).ToList();
+
+        return wanted.ToHashSet().SetEquals((item?.RequiredItems ?? []).Select(required => required.PublishedFileId)) ? null : wanted;
+    }
+
     /// <summary>
     /// The tags the workshop manager would submit: an upload starts over from its own tags, an info edit keeps the item's and applies the game mode boxes to them.
     /// </summary>
@@ -713,7 +794,7 @@ public partial class SubmissionView : UserControl
             return $"Exceeds {AddonContents.FormatSize(AddonPackager.MaxTotalSize)} upload limit! Please optimize your content under this limit.";
         }
 
-        if (mode == SubmissionMode.Edit && options.Title == null && options.Description == null && options.Visibility == null && options.Tags == null && options.ThumbnailImagePath == null && options.Gallery == null)
+        if (mode == SubmissionMode.Edit && options.Title == null && options.Description == null && options.Visibility == null && options.Tags == null && options.ThumbnailImagePath == null && options.Gallery == null && options.RequiredItems == null)
         {
             return "Nothing was changed.";
         }
@@ -774,6 +855,7 @@ public partial class SubmissionView : UserControl
             Tags = edits && tags.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(item!.Tags) ? null : tags,
             ThumbnailImagePath = thumbnailPath,
             Gallery = BuildGallery(),
+            RequiredItems = BuildRequiredItems(),
             ChangeNote = mode == SubmissionMode.ReUpload ? changeNote : null,
         };
 

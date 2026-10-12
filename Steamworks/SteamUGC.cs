@@ -29,15 +29,18 @@ public sealed class SteamUGC
     private enum Slot
     {
         CreateQueryUserUGCRequest = 0,
+        CreateQueryUGCDetailsRequest = 3,
         SendQueryUGCRequest = 4,
         GetQueryUGCResult = 5,
         GetQueryUGCPreviewURL = 9,
+        GetQueryUGCChildren = 11,
         GetQueryUGCStatistic = 12,
         GetQueryUGCNumAdditionalPreviews = 13,
         GetQueryUGCAdditionalPreview = 14,
         ReleaseQueryUGCRequest = 21,
         AddRequiredTag = 22,
         SetReturnLongDescription = 27,
+        SetReturnChildren = 29,
         SetReturnAdditionalPreviews = 30,
         CreateItem = 44,
         StartItemUpdate = 45,
@@ -55,6 +58,8 @@ public sealed class SteamUGC
         SubmitItemUpdate = 66,
         GetItemUpdateProgress = 67,
         GetItemInstallInfo = 77,
+        AddDependency = 85,
+        RemoveDependency = 86,
         DeleteItem = 90,
     }
 
@@ -71,6 +76,16 @@ public sealed class SteamUGC
     public unsafe ulong CreateQueryUserUGCRequest(uint accountId, EUserUGCList list, EUGCMatchingUGCType matchingType, EUserUGCListSortOrder sortOrder, uint creatorAppId, uint consumerAppId, uint page)
     {
         return ((delegate* unmanaged<void*, uint, int, int, int, uint, uint, uint, ulong>)VTable[(int)Slot.CreateQueryUserUGCRequest])((void*)instance, accountId, (int)list, (int)matchingType, (int)sortOrder, creatorAppId, consumerAppId, page);
+    }
+
+    /// <summary>A query for the given items themselves, whoever published them, at most <see cref="ResultsPerPage"/> of them.</summary>
+    /// <returns>Query handle, <see cref="InvalidQueryHandle"/> when the request could not be created.</returns>
+    public unsafe ulong CreateQueryUGCDetailsRequest(ReadOnlySpan<ulong> publishedFileIds)
+    {
+        fixed (ulong* ids = publishedFileIds)
+        {
+            return ((delegate* unmanaged<void*, ulong*, uint, ulong>)VTable[(int)Slot.CreateQueryUGCDetailsRequest])((void*)instance, ids, (uint)publishedFileIds.Length);
+        }
     }
 
     public bool AddRequiredTag(ulong query, string tag)
@@ -117,6 +132,30 @@ public sealed class SteamUGC
         var found = ((delegate* unmanaged<void*, ulong, uint, int, ulong*, byte>)VTable[(int)Slot.GetQueryUGCStatistic])((void*)instance, query, index, (int)statistic, &value) != 0;
 
         return found ? value : null;
+    }
+
+    public unsafe bool SetReturnChildren(ulong query, bool returnChildren)
+    {
+        return ((delegate* unmanaged<void*, ulong, byte, byte>)VTable[(int)Slot.SetReturnChildren])((void*)instance, query, returnChildren ? (byte)1 : (byte)0) != 0;
+    }
+
+    /// <returns>The items one result of a completed query requires, or holds when it is a collection, when the query asked for them.</returns>
+    /// <param name="count">How many there are, the result's <see cref="SteamUGCDetails.NumChildren"/>.</param>
+    public unsafe ulong[] GetQueryUGCChildren(ulong query, uint index, uint count)
+    {
+        var children = new ulong[count];
+
+        if (count == 0)
+        {
+            return children;
+        }
+
+        fixed (ulong* ids = children)
+        {
+            var found = ((delegate* unmanaged<void*, ulong, uint, ulong*, uint, byte>)VTable[(int)Slot.GetQueryUGCChildren])((void*)instance, query, index, ids, count) != 0;
+
+            return found ? children : [];
+        }
     }
 
     public unsafe bool SetReturnAdditionalPreviews(ulong query, bool returnAdditionalPreviews)
@@ -275,6 +314,19 @@ public sealed class SteamUGC
         var status = ((delegate* unmanaged<void*, ulong, ulong*, ulong*, int>)VTable[(int)Slot.GetItemUpdateProgress])((void*)instance, handle, &bytesProcessed, &bytesTotal);
 
         return new ItemUpdateProgress((EItemUpdateStatus)status, bytesProcessed, bytesTotal);
+    }
+
+    /// <summary>Makes <paramref name="childPublishedFileId"/> an item that <paramref name="parentPublishedFileId"/> requires, which its workshop page lists and asks subscribers to get.</summary>
+    /// <returns>Call handle for <see cref="SteamClient.WaitForCallResultAsync{T}"/> with <see cref="AddUGCDependencyResult"/>.</returns>
+    public unsafe ulong AddDependency(ulong parentPublishedFileId, ulong childPublishedFileId)
+    {
+        return ((delegate* unmanaged<void*, ulong, ulong, ulong>)VTable[(int)Slot.AddDependency])((void*)instance, parentPublishedFileId, childPublishedFileId);
+    }
+
+    /// <returns>Call handle for <see cref="SteamClient.WaitForCallResultAsync{T}"/> with <see cref="RemoveUGCDependencyResult"/>.</returns>
+    public unsafe ulong RemoveDependency(ulong parentPublishedFileId, ulong childPublishedFileId)
+    {
+        return ((delegate* unmanaged<void*, ulong, ulong, ulong>)VTable[(int)Slot.RemoveDependency])((void*)instance, parentPublishedFileId, childPublishedFileId);
     }
 
     /// <returns>Call handle for <see cref="SteamClient.WaitForCallResultAsync{T}"/> with <see cref="DeleteItemResult"/>.</returns>
@@ -459,6 +511,30 @@ public readonly record struct DeleteItemResult(EResult Result, ulong PublishedFi
         return new DeleteItemResult(
             (EResult)BinaryPrimitives.ReadInt32LittleEndian(data),
             BinaryPrimitives.ReadUInt64LittleEndian(data[SteamClient.StructPack..]));
+    }
+}
+
+/// <summary>AddUGCDependencyResult_t</summary>
+public readonly record struct AddUGCDependencyResult(EResult Result, ulong PublishedFileId, ulong ChildPublishedFileId) : ICallResult<AddUGCDependencyResult>
+{
+    public static AddUGCDependencyResult Read(ReadOnlySpan<byte> data)
+    {
+        // EResult m_eResult; PublishedFileId_t m_nPublishedFileId; PublishedFileId_t m_nChildPublishedFileId;
+        var reader = new NativeStructReader(data);
+
+        return new AddUGCDependencyResult((EResult)reader.ReadInt32(), reader.ReadUInt64(), reader.ReadUInt64());
+    }
+}
+
+/// <summary>RemoveUGCDependencyResult_t</summary>
+public readonly record struct RemoveUGCDependencyResult(EResult Result, ulong PublishedFileId, ulong ChildPublishedFileId) : ICallResult<RemoveUGCDependencyResult>
+{
+    public static RemoveUGCDependencyResult Read(ReadOnlySpan<byte> data)
+    {
+        // EResult m_eResult; PublishedFileId_t m_nPublishedFileId; PublishedFileId_t m_nChildPublishedFileId;
+        var reader = new NativeStructReader(data);
+
+        return new RemoveUGCDependencyResult((EResult)reader.ReadInt32(), reader.ReadUInt64(), reader.ReadUInt64());
     }
 }
 

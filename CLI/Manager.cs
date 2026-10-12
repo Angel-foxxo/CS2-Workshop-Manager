@@ -33,6 +33,7 @@ public static class Manager
         app.Add("list", Commands.List);
         app.Add("view", Commands.View);
         app.Add("previews", Commands.Previews);
+        app.Add("required", Commands.Required);
         app.Add("delete", Commands.Delete);
         app.Add("addons", Commands.Addons);
         app.Add("contents", Commands.Contents);
@@ -157,6 +158,7 @@ public static class Commands
     /// <param name="tags_dangerous">Comma separated workshop tags used as the complete tag list, without "CS2" and "Map". Without those the item does not show up as a Counter-Strike 2 map in the workshop or in the game's map browsers.</param>
     /// <param name="screenshots">Comma separated disk paths of pictures to add to the gallery under the thumbnail, PNG, JPG or GIF under 1 MB each.</param>
     /// <param name="videos">Comma separated YouTube links or video IDs to add to the gallery.</param>
+    /// <param name="required">Comma separated workshop IDs or links of items this one requires, added to the required items its workshop page lists.</param>
     /// <param name="game">Path to the Counter-Strike 2 install folder. Located through Steam when omitted.</param>
     /// <param name="stage_only">Only pack the addon into game/csgo_addons/vpks/{id}/ and do not talk to Steam. Requires --id.</param>
     /// <param name="force">Update the item even when its installed workshop content was published from a different addon folder.</param>
@@ -174,6 +176,7 @@ public static class Commands
         string? tags_dangerous = default,
         string? screenshots = default,
         string? videos = default,
+        string? required = default,
         string? game = default,
         bool stage_only = false,
         bool force = false
@@ -209,7 +212,7 @@ public static class Commands
             Console.WriteLine($"Warning: uploading with tags [{string.Join(", ", itemTags!)}] without the `CS2` and `Map` tags the workshop manager always sets.");
         }
 
-        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail))
+        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail) || !TryParseItemIds(required, out var requiredIds))
         {
             return 1;
         }
@@ -258,8 +261,8 @@ public static class Commands
                     Console.WriteLine($"Warning: workshop item {id} was last published from addon \"{previousAddon}\", updating it from \"{addon}\".");
                 }
 
-                // what is not given stays as it is on an existing item, and its gallery is kept in front of what is added, a new item starts private with what is given
-                var item = id != null && (screenshots != null || videos != null) ? await FindItemAsync(id.Value).ConfigureAwait(false) : null;
+                // what is not given stays as it is on an existing item, and its gallery and required items are kept in front of what is added, a new item starts private with what is given
+                var item = id != null && (screenshots != null || videos != null || required != null) ? await FindItemAsync(id.Value).ConfigureAwait(false) : null;
 
                 var result = await manager.PublishAsync(new AddonPublishOptions
                 {
@@ -271,6 +274,7 @@ public static class Commands
                     Tags = itemTags,
                     ThumbnailImagePath = thumbnail,
                     Gallery = BuildGallery(item?.Previews ?? [], [], screenshots, videos),
+                    RequiredItems = BuildRequiredItems(item?.RequiredItems ?? [], requiredIds, []),
                     ChangeNote = changenote,
                     AllowSourceFolderChange = force,
                 }, new Progress<float>(progress =>
@@ -308,6 +312,8 @@ public static class Commands
     /// <param name="screenshots">Comma separated disk paths of pictures to add to the gallery under the thumbnail, PNG, JPG or GIF under 1 MB each.</param>
     /// <param name="videos">Comma separated YouTube links or video IDs to add to the gallery.</param>
     /// <param name="remove_previews">Comma separated indices of gallery entries to remove, as the previews command lists them.</param>
+    /// <param name="required">Comma separated workshop IDs or links of items this one requires, added to the required items its workshop page lists.</param>
+    /// <param name="remove_required">Comma separated workshop IDs or links of required items to remove, as the required command lists them.</param>
     /// <param name="changenote">-c, Change note, none by default.</param>
     /// <param name="changenote_file">Read the change note from this text file instead.</param>
     public static async Task<int> Edit(
@@ -321,6 +327,8 @@ public static class Commands
         string? screenshots = default,
         string? videos = default,
         string? remove_previews = default,
+        string? required = default,
+        string? remove_required = default,
         string? changenote = default,
         string? changenote_file = default
     )
@@ -337,7 +345,7 @@ public static class Commands
             itemVisibility = parsed;
         }
 
-        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail))
+        if (!TryReadText(ref description, description_file, "description") || !TryReadText(ref changenote, changenote_file, "change note") || !TryCheckThumbnail(thumbnail) || !TryParseItemIds(required, out var requiredIds) || !TryParseItemIds(remove_required, out var requiredRemovals))
         {
             return 1;
         }
@@ -355,9 +363,9 @@ public static class Commands
             removals.Add(parsed);
         }
 
-        if (title == null && description == null && thumbnail == null && itemVisibility == null && tags == null && screenshots == null && videos == null && removals.Count == 0)
+        if (title == null && description == null && thumbnail == null && itemVisibility == null && tags == null && screenshots == null && videos == null && removals.Count == 0 && requiredIds.Count == 0 && requiredRemovals.Count == 0)
         {
-            await Console.Error.WriteLineAsync("Nothing to change, give at least one of --title, --description, --thumbnail, --visibility, --tags, --screenshots, --videos or --remove_previews.").ConfigureAwait(false);
+            await Console.Error.WriteLineAsync("Nothing to change, give at least one of --title, --description, --thumbnail, --visibility, --tags, --screenshots, --videos, --remove_previews, --required or --remove_required.").ConfigureAwait(false);
             return 1;
         }
 
@@ -366,8 +374,8 @@ public static class Commands
             IReadOnlyList<string>? itemTags = null;
             GalleryUpdate? gallery = null;
 
-            // the item itself is only fetched for what needs it, the tags it has and the gallery it has
-            var item = tags != null || screenshots != null || videos != null || removals.Count > 0 ? await FindItemAsync(id).ConfigureAwait(false) : null;
+            // the item itself is only fetched for what needs it, the tags it has, the gallery it has and the items it requires
+            var item = tags != null || screenshots != null || videos != null || removals.Count > 0 || requiredIds.Count > 0 || requiredRemovals.Count > 0 ? await FindItemAsync(id).ConfigureAwait(false) : null;
 
             if (item != null)
             {
@@ -377,6 +385,11 @@ public static class Commands
                 }
 
                 gallery = BuildGallery(item.Previews, removals, screenshots, videos);
+
+                foreach (var removal in requiredRemovals.Where(removal => item.RequiredItems.All(existing => existing.PublishedFileId != removal)))
+                {
+                    throw new ArgumentException($"Workshop item {removal} is not one of the required items, the required command lists them.");
+                }
             }
 
             if (tags != null)
@@ -408,6 +421,7 @@ public static class Commands
                 Tags = itemTags,
                 ThumbnailImagePath = thumbnail,
                 Gallery = gallery,
+                RequiredItems = BuildRequiredItems(item?.RequiredItems ?? [], requiredIds, requiredRemovals),
                 ChangeNote = changenote,
             }).ConfigureAwait(false);
 
@@ -475,6 +489,25 @@ public static class Commands
             }
 
             Console.WriteLine($"{item.Previews.Count} gallery entries on \"{item.Title}\"");
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the items a published item requires, as its workshop page shows them, with the IDs that --remove_required takes.
+    /// </summary>
+    /// <param name="id">-i, Workshop ID of the submission.</param>
+    public static async Task<int> Required(ulong id)
+    {
+        return await Manager.RunAsync(async () =>
+        {
+            var item = await FindItemAsync(id).ConfigureAwait(false);
+
+            foreach (var required in item.RequiredItems)
+            {
+                Console.WriteLine($"{required.PublishedFileId,-11} {required.Title ?? "(not available)"}");
+            }
+
+            Console.WriteLine($"{item.RequiredItems.Count} required items on \"{item.Title}\"");
         }).ConfigureAwait(false);
     }
 
@@ -675,6 +708,38 @@ public static class Commands
     private static string[] SplitTags(string? tags)
     {
         return tags?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+    }
+
+    /// <summary>Reads comma separated workshop ids or links, and says no when one is neither.</summary>
+    private static bool TryParseItemIds(string? text, out List<ulong> ids)
+    {
+        ids = [];
+
+        foreach (var item in SplitTags(text))
+        {
+            if (WorkshopManager.ParseWorkshopItemId(item) is not ulong id)
+            {
+                Console.Error.WriteLine($"\"{item}\" is not a workshop ID or a link to a workshop item.");
+                return false;
+            }
+
+            ids.Add(id);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The required items as the command line edits them: the item's but the removed ones, then the added ones. Null when nothing is asked of them.
+    /// </summary>
+    private static List<ulong>? BuildRequiredItems(IReadOnlyList<RequiredItem> current, List<ulong> additions, List<ulong> removals)
+    {
+        if (additions.Count == 0 && removals.Count == 0)
+        {
+            return null;
+        }
+
+        return [.. current.Select(item => item.PublishedFileId).Except(removals).Union(additions)];
     }
 
     /// <summary>

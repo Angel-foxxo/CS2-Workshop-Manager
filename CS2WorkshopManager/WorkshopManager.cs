@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -47,6 +48,9 @@ public sealed record AddonPublishOptions
 
     /// <summary> The gallery under the main preview as it should be afterwards, see <see cref="GalleryUpdate"/>. Null leaves the published gallery alone. </summary>
     public GalleryUpdate? Gallery { get; init; }
+
+    /// <summary> Workshop IDs of the items this one requires, as they should be afterwards, which its workshop page lists as required items. Null leaves an existing item's alone. </summary>
+    public IReadOnlyList<ulong>? RequiredItems { get; init; }
 
     /// <summary> Change note that shows up in the "Change Notes" tab. Null gives the workshop manager's "Created {Title}." for a new item, "Edited {Title}." for an upload with a title, and no note otherwise. </summary>
     public string? ChangeNote { get; init; }
@@ -136,6 +140,15 @@ public sealed record WorkshopPreview(WorkshopPreviewKind Kind, string Value, str
 }
 
 /// <summary>
+/// A workshop item another one requires, which that one's workshop page lists and asks subscribers to get.
+/// The title is null when Steam does not give the item, it being deleted or not visible to the logged in account.
+/// </summary>
+public sealed record RequiredItem(ulong PublishedFileId, string? Title)
+{
+    public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
+}
+
+/// <summary>
 /// A workshop item as the workshop manager lists it.
 /// </summary>
 public sealed record WorkshopItem(
@@ -154,7 +167,8 @@ public sealed record WorkshopItem(
     double Score,
     ulong Views,
     Uri? PreviewUrl,
-    IReadOnlyList<WorkshopPreview> Previews)
+    IReadOnlyList<WorkshopPreview> Previews,
+    IReadOnlyList<RequiredItem> RequiredItems)
 {
     public Uri Url => new($"https://steamcommunity.com/sharedfiles/filedetails/?id={PublishedFileId}");
 
@@ -428,6 +442,7 @@ public sealed class WorkshopManager
                 }
                 ugc.SetReturnLongDescription(query, true);
                 ugc.SetReturnAdditionalPreviews(query, true);
+                ugc.SetReturnChildren(query, true);
 
                 var completed = await client.WaitForCallResultAsync<SteamUGCQueryCompleted>(ugc.SendQueryUGCRequest(query)).ConfigureAwait(false);
 
@@ -461,7 +476,8 @@ public sealed class WorkshopManager
                         details.Score,
                         ugc.GetQueryUGCStatistic(query, index, EItemStatistic.NumUniqueWebsiteViews) ?? 0,
                         ugc.GetQueryUGCPreviewURL(query, index),
-                        ReadPreviews(ugc, query, index));
+                        ReadPreviews(ugc, query, index),
+                        await FindItemsAsync(ugc.GetQueryUGCChildren(query, index, details.NumChildren)).ConfigureAwait(false));
                 }
 
                 if (completed.NumResultsReturned < SteamUGC.ResultsPerPage || count >= completed.TotalMatchingResults)
@@ -532,20 +548,154 @@ public sealed class WorkshopManager
         {
             return value.Length == 11 && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
         }
+    }
 
-        static string? QueryValue(string query, string name)
+    /// <summary>
+    /// The workshop id in a link to an item's workshop page, or the text itself when it already is an id, or null when it is neither.
+    /// </summary>
+    public static ulong? ParseWorkshopItemId(string text)
+    {
+        text = text.Trim();
+
+        // steamcommunity.com/sharedfiles/filedetails/?id=ID, and /workshop/filedetails/?id=ID
+        var candidate = Uri.TryCreate(text, UriKind.Absolute, out var link) && link.Host.EndsWith("steamcommunity.com", StringComparison.OrdinalIgnoreCase)
+            ? QueryValue(link.Query, "id")
+            : text;
+
+        return ulong.TryParse(candidate, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id != 0 ? id : null;
+    }
+
+    private static string? QueryValue(string query, string name)
+    {
+        foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
-            foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var separator = pair.IndexOf('=');
+            var separator = pair.IndexOf('=');
 
-                if (separator > 0 && pair[..separator] == name)
-                {
-                    return pair[(separator + 1)..];
-                }
+            if (separator > 0 && pair[..separator] == name)
+            {
+                return pair[(separator + 1)..];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The given workshop items, whoever published them, each with its title, in the order given.
+    /// </summary>
+    public static async Task<IReadOnlyList<RequiredItem>> FindItemsAsync(IReadOnlyList<ulong> publishedFileIds)
+    {
+        if (publishedFileIds.Count == 0)
+        {
+            return [];
+        }
+
+        var titles = (await QueryItemsAsync(publishedFileIds).ConfigureAwait(false)).ToDictionary(item => item.Details.PublishedFileId, item => item.Details.Title);
+
+        return [.. publishedFileIds.Select(id => new RequiredItem(id, titles.GetValueOrDefault(id)))];
+    }
+
+    /// <summary>
+    /// What Steam gives for the given items, each with the items it requires. An item it does not give, deleted or not visible to the logged in account, is left out.
+    /// </summary>
+    private static async Task<List<(SteamUGCDetails Details, ulong[] Children)>> QueryItemsAsync(IReadOnlyList<ulong> publishedFileIds)
+    {
+        var client = Steam;
+        var ugc = client.UGC;
+        var items = new List<(SteamUGCDetails Details, ulong[] Children)>();
+
+        foreach (var page in publishedFileIds.Distinct().Chunk((int)SteamUGC.ResultsPerPage))
+        {
+            var query = ugc.CreateQueryUGCDetailsRequest(page);
+
+            if (query == SteamUGC.InvalidQueryHandle)
+            {
+                throw new InvalidOperationException("Failed to create a workshop query.");
             }
 
-            return null;
+            try
+            {
+                ugc.SetReturnChildren(query, true);
+
+                var completed = await client.WaitForCallResultAsync<SteamUGCQueryCompleted>(ugc.SendQueryUGCRequest(query)).ConfigureAwait(false);
+
+                if (completed.Result != EResult.OK)
+                {
+                    throw new InvalidOperationException($"Workshop query failed: {completed.Result}");
+                }
+
+                for (var index = 0u; index < completed.NumResultsReturned; index++)
+                {
+                    if (ugc.GetQueryUGCResult(query, index) is { Result: EResult.OK } details)
+                    {
+                        items.Add((details, ugc.GetQueryUGCChildren(query, index, details.NumChildren)));
+                    }
+                }
+            }
+            finally
+            {
+                ugc.ReleaseQueryUGCRequest(query);
+            }
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// What takes an item's required items to <paramref name="wanted"/>, worked out and checked before anything is changed: the ones it has that are not wanted go,
+    /// and the wanted ones it lacks are added. A new item, which has no id yet, has none to go.
+    /// </summary>
+    private static async Task<(List<ulong> Removals, List<ulong> Additions)> PlanRequiredItemsAsync(ulong? publishedFileId, IReadOnlyList<ulong> wanted)
+    {
+        ulong[] current = [];
+
+        if (publishedFileId is ulong existing)
+        {
+            if (wanted.Contains(existing))
+            {
+                throw new ArgumentException($"Workshop item {existing} can not require itself.");
+            }
+
+            var items = await QueryItemsAsync([existing]).ConfigureAwait(false);
+
+            current = items.Count > 0 ? items[0].Children : throw new InvalidOperationException($"Workshop item {existing} does not exist or is not visible to the logged in account.");
+        }
+
+        var additions = wanted.Distinct().Except(current).ToList();
+        var found = (await QueryItemsAsync(additions).ConfigureAwait(false)).Select(item => item.Details.PublishedFileId).ToHashSet();
+
+        foreach (var missing in additions.Where(id => !found.Contains(id)))
+        {
+            throw new ArgumentException($"Workshop item {missing} can not be required, it does not exist or is not visible to the logged in account.");
+        }
+
+        return (current.Except(wanted).ToList(), additions);
+    }
+
+    /// <summary>Removes and adds the required items a plan came to, one Steam call each, since they are not part of an item's update.</summary>
+    private static async Task ApplyRequiredItemsAsync(ulong publishedFileId, (List<ulong> Removals, List<ulong> Additions) plan)
+    {
+        var client = Steam;
+        var ugc = client.UGC;
+
+        foreach (var child in plan.Removals)
+        {
+            var result = await client.WaitForCallResultAsync<RemoveUGCDependencyResult>(ugc.RemoveDependency(publishedFileId, child)).ConfigureAwait(false);
+
+            if (result.Result != EResult.OK)
+            {
+                throw new InvalidOperationException($"RemoveDependency of {child} from {publishedFileId} failed: {result.Result}");
+            }
+        }
+
+        foreach (var child in plan.Additions)
+        {
+            var result = await client.WaitForCallResultAsync<AddUGCDependencyResult>(ugc.AddDependency(publishedFileId, child)).ConfigureAwait(false);
+
+            if (result.Result != EResult.OK)
+            {
+                throw new InvalidOperationException($"AddDependency of {child} to {publishedFileId} failed: {result.Result}");
+            }
         }
     }
 
@@ -731,7 +881,18 @@ public sealed class WorkshopManager
             ValidateThumbnailImage(options.ThumbnailImagePath);
         }
 
+        // the required items are checked with Steam before that too, so one that does not exist does not leave an empty item behind either
+        (List<ulong> Removals, List<ulong> Additions)? requiredItems = options.RequiredItems == null ? null : await PlanRequiredItemsAsync(options.PublishedFileId, options.RequiredItems).ConfigureAwait(false);
+
         var publishedFileId = options.PublishedFileId ?? await CreateItemAsync().ConfigureAwait(false);
+
+        // an item whose required items are all that changes has no update to submit
+        if (requiredItems != null && options is { AddonName: null, Title: null, Description: null, Visibility: null, Tags: null, ThumbnailImagePath: null, Gallery: null, ChangeNote: null })
+        {
+            await ApplyRequiredItemsAsync(publishedFileId, requiredItems.Value).ConfigureAwait(false);
+
+            return new WorkshopPublishResult(publishedFileId, false);
+        }
 
         var publishTime = DateTimeOffset.UtcNow;
 
@@ -808,6 +969,11 @@ public sealed class WorkshopManager
         if (result.Result != EResult.OK)
         {
             throw new InvalidOperationException($"SubmitItemUpdate failed: {result.Result}");
+        }
+
+        if (requiredItems != null)
+        {
+            await ApplyRequiredItemsAsync(publishedFileId, requiredItems.Value).ConfigureAwait(false);
         }
 
         return new WorkshopPublishResult(publishedFileId, result.UserNeedsToAcceptWorkshopLegalAgreement);

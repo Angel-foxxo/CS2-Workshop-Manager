@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="using:GUI"
+             xmlns:core="using:CS2WorkshopManager"
              mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
              x:Class="GUI.SubmissionView">
     <UserControl.Styles>
@@ -111,7 +112,7 @@
 
             <!-- the submission's info, the description takes whatever height is left -->
             <Border Grid.Column="2" Background="{DynamicResource ShadeBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="16">
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
                     <TextBlock Name="ChangeNoteLabel" Classes="label top" Text="Change Log:" />
                     <TextBox Name="ChangeNoteBox" Grid.Column="1" Margin="0,0,0,12" Height="90" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Type your update notes for this change here" />
 
@@ -169,8 +170,34 @@
                         </DropDownButton.Flyout>
                     </DropDownButton>
 
-                    <TextBlock Grid.Row="5" Classes="label" Text="Visibility:" Margin="0,0,12,0" />
-                    <ComboBox Name="VisibilityBox" Grid.Row="5" Grid.Column="1" HorizontalAlignment="Stretch" />
+                    <TextBlock Grid.Row="5" Classes="label" Text="Visibility:" />
+                    <ComboBox Name="VisibilityBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,12" HorizontalAlignment="Stretch" />
+
+                    <!-- the other workshop items this one needs, which its workshop page lists and asks subscribers to get -->
+                    <TextBlock Grid.Row="6" Classes="label top" Text="Required Items:" />
+                    <DockPanel Grid.Row="6" Grid.Column="1">
+                        <Button DockPanel.Dock="Right" Content="Add" VerticalAlignment="Top" Margin="8,0,0,0" Click="OnAddRequiredItem" />
+                        <Border Background="{DynamicResource FieldBrush}" CornerRadius="5" Padding="8,4" MinHeight="32">
+                            <Panel>
+                                <TextBlock Name="RequiredItemsHint" Text="None" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                <ScrollViewer MaxHeight="112">
+                                    <ItemsControl Name="RequiredItems">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="core:RequiredItem">
+                                                <DockPanel Margin="0,2">
+                                                    <Button DockPanel.Dock="Right" Padding="5" Margin="8,0,0,0" ToolTip.Tip="Remove" Click="OnRemoveRequiredItem">
+                                                        <Image Source="avares://CS2WorkshopManager-GUI/assets/buttons/delete.png" Width="14" Height="14" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                    </Button>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding PublishedFileId}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource ContrastSoftBrush}" />
+                                                    <TextBlock Text="{Binding Title, TargetNullValue='(not available)'}" Margin="0,0,12,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ContrastBrush}" ToolTip.Tip="{Binding Url}" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Panel>
+                        </Border>
+                    </DockPanel>
                 </Grid>
             </Border>
         </Grid>

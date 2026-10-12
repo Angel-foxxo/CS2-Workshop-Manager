@@ -20,6 +20,7 @@ Valve's Worskhop manager has quite a lot of drawbacks and shortcomings, this too
 - Added "Unlisted" visiblity option.
 - Added a new description editor, with Steam BBCode preview.
 - Added a new gallery editor, screenshots and YouTube videos under the thumbnail can be added and removed without leaving the app.
+- Added a required items editor, the other workshop items a map needs can be added and removed without going to its workshop page.
 - Added support for more thumbnail file types as well as resolutions.
 - Added support for GIF thumbnails.
 - Contributors can now re-upload the submissions.
@@ -46,10 +47,11 @@ Exposes the full functionality that the base library and GUI expose, useful for 
 | Command | What it does |
 |---|---|
 | `upload` | Packs an addon and publishes it as a new item, or updates an existing item when `--id` is given. |
-| `edit` | Changes a published item's title, description, thumbnail, visibility or game modes, and adds or removes gallery screenshots and videos. |
+| `edit` | Changes a published item's title, description, thumbnail, visibility or game modes, and adds or removes gallery screenshots and videos and required items. |
 | `list` | Lists your published maps with their counts. |
 | `view` | Opens an item's workshop page in Steam. |
 | `previews` | Lists the gallery under an item's thumbnail, with the indices that `edit --remove_previews` takes. |
+| `required` | Lists the items an item requires, with the IDs that `edit --remove_required` takes. |
 | `delete` | Deletes an item, after asking, or straight away with `--yes`. |
 | `addons` | Lists the addon folders, marking the one open in the tools. |
 | `contents` | Shows what an addon would upload by asset type. |
